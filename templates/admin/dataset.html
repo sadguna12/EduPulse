@@ -1,63 +1,227 @@
 {% extends 'base.html' %}
 {% from 'macros/nav.html' import admin_nav %}
 {% block title %}Dataset Management{% endblock %}
-{% block page_title %}Academic Dataset Management & Import Engine{% endblock %}
+{% block page_title %}Academic Dataset Management & Unified Master Importer{% endblock %}
 {% block nav %}{{ admin_nav() }}{% endblock %}
 
 {% block content %}
-<!-- Category Selection Tabs -->
-<div class="card" style="margin-bottom:20px; padding:12px;">
-  <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;" id="categoryTabs">
-    <button type="button" class="btn btn-primary btn-sm category-tab" onclick="switchCategory('students')" id="tab-students">
-      🎓 Students
-    </button>
-    <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('faculty')" id="tab-faculty">
-      👨‍🏫 Faculty
-    </button>
-    <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('marks')" id="tab-marks">
-      📊 Subject Marks
-    </button>
-    <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('attendance')" id="tab-attendance">
-      📅 Attendance
-    </button>
-    <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('subjects')" id="tab-subjects">
-      📚 Subjects
-    </button>
-    <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('examinations')" id="tab-examinations">
-      📝 Examinations
-    </button>
-    <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('departments_sections')" id="tab-departments_sections">
-      🏛️ Departments & Sections
-    </button>
+<!-- Master Excel Workbook Section (Primary Workflow) -->
+<div class="card" style="margin-bottom:24px; border:2px solid var(--accent-blue); box-shadow:0 10px 25px -5px rgba(59, 130, 246, 0.15);">
+  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+    <div>
+      <div class="card-title" style="display:flex; align-items:center; gap:10px; font-size:1.25rem;">
+        <span>📊</span> Unified Master Excel Dataset Import (Recommended)
+      </div>
+      <div class="card-subtitle">
+        Upload ONE Excel workbook containing all 7 worksheets (Departments, Students, Faculty, Subjects, Examinations, Marks, Attendance)
+      </div>
+    </div>
+    <a href="{{ url_for('admin.download_master_template') }}" class="btn btn-primary" id="downloadMasterBtn" style="display:flex; align-items:center; gap:8px;">
+      <span>📥</span> Download Master Excel Template (.xlsx)
+    </a>
+  </div>
+
+  <div style="padding:4px 0;">
+    <!-- If Master Inspection is active (Preview Mode) -->
+    {% if master_inspection %}
+    <div style="background:var(--bg-elevated); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:20px; margin-bottom:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+        <div>
+          <span class="badge badge-purple" style="font-size:0.85rem;">📁 Staged Workbook: {{ master_filename }}</span>
+          <h3 style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:6px 0 0 0;">
+            Unified Workbook Validation & Preview
+          </h3>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <form method="POST" action="{{ url_for('admin.master_cancel') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-secondary">✕ Cancel Preview</button>
+          </form>
+          <form method="POST" action="{{ url_for('admin.master_confirm') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="filename" value="{{ master_filename }}">
+            <input type="hidden" name="duplicate_policy" value="{{ dup_policy or 'skip' }}">
+            <button type="submit" class="btn btn-primary">
+              📥 Confirm and Import All Records ✓
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Validation Status Alerts -->
+      {% if master_inspection.missing_dependencies %}
+      <div style="background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.35); border-left:4px solid var(--accent-orange); border-radius:var(--radius-md); padding:14px 16px; margin-bottom:16px;">
+        <div style="font-weight:700; color:var(--accent-orange); margin-bottom:6px; display:flex; align-items:center; gap:8px;">
+          <span>⚠️</span> Missing Cross-Sheet Dependencies Detected ({{ master_inspection.missing_dependencies|length }}):
+        </div>
+        <ul style="margin:0; padding-left:20px; font-size:0.85rem; color:var(--text-secondary); line-height:1.5;">
+          {% for dep in master_inspection.missing_dependencies[:10] %}
+          <li>{{ dep }}</li>
+          {% endfor %}
+          {% if master_inspection.missing_dependencies|length > 10 %}
+          <li>... and {{ master_inspection.missing_dependencies|length - 10 }} more dependency warnings.</li>
+          {% endif %}
+        </ul>
+        <div class="text-xs text-muted" style="margin-top:8px;">
+          * Valid rows with existing dependencies will be imported safely; invalid rows will be reported in the error log.
+        </div>
+      </div>
+      {% endif %}
+
+      {% if master_inspection.validation_issues %}
+      <div style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); border-left:4px solid var(--accent-red); border-radius:var(--radius-md); padding:14px 16px; margin-bottom:16px;">
+        <div style="font-weight:700; color:var(--accent-red); margin-bottom:6px; display:flex; align-items:center; gap:8px;">
+          <span>⚠️</span> Row Validation Issues ({{ master_inspection.validation_issues|length }}):
+        </div>
+        <ul style="margin:0; padding-left:20px; font-size:0.85rem; color:var(--text-secondary); line-height:1.5;">
+          {% for issue in master_inspection.validation_issues[:8] %}
+          <li>{{ issue }}</li>
+          {% endfor %}
+          {% if master_inspection.validation_issues|length > 8 %}
+          <li>... and {{ master_inspection.validation_issues|length - 8 }} additional row issues.</li>
+          {% endif %}
+        </ul>
+      </div>
+      {% elif not master_inspection.missing_dependencies %}
+      <div style="background:rgba(16, 185, 129, 0.12); border:1px solid rgba(16, 185, 129, 0.3); border-left:4px solid var(--accent-green); border-radius:var(--radius-md); padding:12px 16px; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+        <span style="font-size:1.4rem;">✅</span>
+        <div style="font-size:0.9rem; color:var(--text-primary); font-weight:600;">
+          All cross-sheet relationships verified! All 7 sheets are structurally valid and ready for atomic import.
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Metrics Tiles -->
+      <div class="stat-grid" style="margin-bottom:20px;">
+        <div class="stat-card blue">
+          <div class="stat-icon blue">📑</div>
+          <div class="stat-value">{{ master_inspection.summary.total_sheets_detected }} / 7</div>
+          <div class="stat-label">Worksheets Found</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon purple">📊</div>
+          <div class="stat-value">{{ master_inspection.summary.total_rows }}</div>
+          <div class="stat-label">Total Data Rows</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon green">🎓</div>
+          <div class="stat-value">{{ master_inspection.summary.detected_students_count }}</div>
+          <div class="stat-label">Students</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-icon orange">👨‍🏫</div>
+          <div class="stat-value">{{ master_inspection.summary.detected_faculty_count }}</div>
+          <div class="stat-label">Faculty Members</div>
+        </div>
+      </div>
+
+      <!-- Sheet Samples Browser Tabs -->
+      <div style="margin-top:16px;">
+        <div style="font-weight:700; font-size:0.95rem; color:var(--text-primary); margin-bottom:10px;">
+          Inspect Sheet Data Samples (First 10 Rows):
+        </div>
+        <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:12px;" id="masterPreviewTabs">
+          {% for cat, sheet_label in master_inspection.detected_sheets.items() %}
+          <button type="button" class="btn btn-secondary btn-sm master-tab-btn" onclick="showMasterSample('{{ cat }}')" id="mtab-{{ cat }}">
+            {{ cat | capitalize }} ({{ master_inspection.summary.row_counts.get(cat, 0) }})
+          </button>
+          {% endfor %}
+        </div>
+
+        {% for cat, rows in master_inspection.samples.items() %}
+        <div class="master-sample-container" id="msample-{{ cat }}" style="display:none;">
+          {% if rows %}
+          <div class="table-responsive" style="max-height:280px; overflow-y:auto; border:1px solid var(--border-color); border-radius:var(--radius-md);">
+            <table class="table" style="font-size:0.825rem;">
+              <thead>
+                <tr>
+                  {% for k in rows[0].keys() %}
+                  <th>{{ k }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in rows %}
+                <tr>
+                  {% for v in r.values() %}
+                  <td>{{ v }}</td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="empty-state" style="padding:20px;"><div class="empty-title">Sheet is empty or has no data rows</div></div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Master Upload Form -->
+    <form method="POST" action="{{ url_for('admin.master_preview') }}" enctype="multipart/form-data" style="margin-top:8px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end;">
+        <div style="flex:1; min-width:260px;">
+          <label class="form-label" style="font-weight:600;">Choose Master Excel Workbook (.xlsx) *</label>
+          <input type="file" name="master_file" class="form-control" accept=".xlsx, .xls" required>
+          <div class="form-hint">Accepts single workbook e.g. <code>EduPulse_Dataset.xlsx</code> containing 7 worksheets</div>
+        </div>
+
+        <div style="min-width:240px;">
+          <label class="form-label" style="font-weight:600;">Duplicate Handling Strategy</label>
+          <select name="duplicate_policy" class="form-control">
+            <option value="skip" selected>⏩ Skip Existing Records (Safe)</option>
+            <option value="update">🔄 Update Permitted Non-Academic Fields</option>
+            <option value="error">⚠️ Flag Conflicts as Errors</option>
+          </select>
+        </div>
+
+        <div>
+          <button type="submit" class="btn btn-primary" style="padding:10px 22px;">
+            👁️ Preview & Validate Workbook
+          </button>
+        </div>
+      </div>
+    </form>
   </div>
 </div>
 
-<!-- Main Upload & Configuration Grid -->
-<div class="grid-2" style="gap:24px; align-items:start; margin-bottom:24px;">
-
-  <!-- Upload & Configuration Form -->
-  <div class="card">
-    <div class="card-header">
-      <div>
-        <div class="card-title" id="catTitle">🎓 Student Dataset Import</div>
-        <div class="card-subtitle" id="catSubtitle">Upload student enrollment records in CSV or Excel format</div>
+<!-- Secondary Section: Single-Category Import (Optional Fallback) -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header" style="cursor:pointer;" onclick="toggleFallbackImport()">
+    <div>
+      <div class="card-title" style="font-size:1.05rem;">
+        📂 Individual File Import (Legacy Fallback)
       </div>
-      <a href="{{ url_for('admin.download_template', category='students') }}" class="btn btn-secondary btn-sm" id="sampleTemplateBtn">
-        📥 Sample CSV
-      </a>
+      <div class="card-subtitle">
+        Optionally upload single CSV or Excel files for one category at a time
+      </div>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm" id="toggleFallbackBtn">
+      Show Fallback Forms ▾
+    </button>
+  </div>
+
+  <div id="fallbackImportContainer" style="display:none; padding-top:16px;">
+    <!-- Category Tabs -->
+    <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; margin-bottom:16px;" id="categoryTabs">
+      <button type="button" class="btn btn-primary btn-sm category-tab" onclick="switchCategory('students')" id="tab-students">🎓 Students</button>
+      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('faculty')" id="tab-faculty">👨‍🏫 Faculty</button>
+      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('marks')" id="tab-marks">📊 Marks</button>
+      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('attendance')" id="tab-attendance">📅 Attendance</button>
+      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('subjects')" id="tab-subjects">📚 Subjects</button>
+      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('examinations')" id="tab-examinations">📝 Examinations</button>
+      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('departments_sections')" id="tab-departments_sections">🏛️ Departments</button>
     </div>
 
-    <!-- Requirements advisory card -->
-    <div id="colRequirements" style="background:var(--bg-elevated); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:12px 16px; margin-bottom:18px; font-size:0.85rem; line-height:1.5;">
-      <strong style="color:var(--text-primary);">Required Columns:</strong> <code>roll_number</code>, <code>name</code><br>
-      <strong style="color:var(--text-secondary);">Optional / Fallback:</strong> <code>email</code>, <code>department_code</code>, <code>section</code>, <code>semester</code>, <code>gender</code>
-    </div>
-
-    <form method="POST" enctype="multipart/form-data" id="datasetForm">
+    <form method="POST" action="{{ url_for('admin.dataset') }}" enctype="multipart/form-data" id="datasetForm">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="category" id="selectedCategory" value="{{ preview_category or 'students' }}">
 
-      <!-- Department & Scope Selection -->
       <div class="form-row" style="margin-bottom:14px;">
         <div class="form-group" style="margin-bottom:0;">
           <label class="form-label">Target Department</label>
@@ -67,254 +231,40 @@
             <option value="{{ d.id }}">{{ d.name }} ({{ d.code }})</option>
             {% endfor %}
           </select>
-          <div class="form-hint">Used if department is missing from individual file rows</div>
         </div>
-
         <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">Academic Year</label>
-          <select name="academic_year_id" class="form-control">
-            <option value="">— Current Active Year —</option>
-            {% for ay in academic_years %}
-            <option value="{{ ay.id }}" {{ 'selected' if ay.is_current else '' }}>{{ ay.year_label }}{{ ' (Current)' if ay.is_current else '' }}</option>
-            {% endfor %}
+          <label class="form-label">Duplicate Policy</label>
+          <select name="duplicate_policy" class="form-control">
+            <option value="skip" selected>Skip Existing</option>
+            <option value="update">Update Permitted Fields</option>
+            <option value="error">Error on Conflict</option>
           </select>
         </div>
       </div>
 
-      <!-- Duplicate Detection & Update Strategy -->
-      <div class="form-group" style="margin-bottom:18px;">
-        <label class="form-label">Duplicate Handling Strategy</label>
-        <div style="display:flex; gap:16px; flex-wrap:wrap; background:var(--bg-elevated); padding:10px 14px; border-radius:var(--radius-md); border:1px solid var(--border-color);">
-          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem; color:var(--text-secondary);">
-            <input type="radio" name="duplicate_policy" value="skip" checked style="accent-color:var(--accent-blue);">
-            ⏩ Skip Existing (Safe)
-          </label>
-          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem; color:var(--text-secondary);">
-            <input type="radio" name="duplicate_policy" value="update" style="accent-color:var(--accent-blue);">
-            🔄 Update Permitted Fields
-          </label>
-          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem; color:var(--text-secondary);">
-            <input type="radio" name="duplicate_policy" value="error" style="accent-color:var(--accent-red);">
-            ⚠️ Flag as Duplicate Error
-          </label>
-        </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">Choose CSV or Excel File</label>
+        <input type="file" name="file" class="form-control" accept=".csv, .xlsx, .xls">
       </div>
 
-      <!-- File Chooser -->
-      <div class="form-group" style="margin-bottom:20px;">
-        <label class="form-label">Choose CSV or Excel File *</label>
-        <input type="file" name="file" class="form-control" accept=".csv, .xlsx, .xls" required id="datasetFile">
-        <div class="form-hint">Supports .csv (UTF-8, Latin1) and Excel (.xlsx, .xls) files up to 16MB</div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div style="display:flex; gap:12px; flex-wrap:wrap;">
-        <button type="submit" name="action" value="preview" class="btn btn-secondary" style="flex:1; justify-content:center;">
-          👁️ Preview & Validate
+      <div style="display:flex; gap:12px;">
+        <button type="submit" name="action" value="preview" class="btn btn-secondary">
+          👁️ Preview File
         </button>
-        <button type="submit" name="action" value="import" class="btn btn-primary" style="flex:1; justify-content:center;">
-          📥 Import & Save Records
+        <button type="submit" name="action" value="import" class="btn btn-primary">
+          📥 Import Single File
         </button>
       </div>
     </form>
-
-    <!-- Import Summary Banner -->
-    {% if import_summary %}
-    <div style="margin-top:20px; padding:16px; border-radius:var(--radius-lg); background:var(--bg-elevated); border:1px solid {{ 'var(--accent-green)' if import_summary.status == 'completed' else ('var(--accent-orange)' if import_summary.status == 'partial' else 'var(--accent-red)') }}; border-left:5px solid {{ 'var(--accent-green)' if import_summary.status == 'completed' else ('var(--accent-orange)' if import_summary.status == 'partial' else 'var(--accent-red)') }};">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <strong style="font-size:1rem; color:var(--text-primary);">
-          Import Summary ({{ import_summary.status | capitalize }})
-        </strong>
-        <span class="badge {{ 'badge-success' if import_summary.status == 'completed' else ('badge-warning' if import_summary.status == 'partial' else 'badge-danger') }}">
-          {{ import_summary.status | upper }}
-        </span>
-      </div>
-      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; font-size:0.875rem;">
-        <div>✅ Saved: <strong style="color:var(--accent-green);">{{ import_summary.imported }}</strong></div>
-        <div>⏩ Skipped: <strong style="color:var(--accent-orange);">{{ import_summary.skipped }}</strong></div>
-        <div>❌ Rejected: <strong style="color:var(--accent-red);">{{ import_summary.failed }}</strong></div>
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Row-level Error Reports -->
-    {% if errors %}
-    <div style="margin-top:18px;">
-      <div style="font-size:0.85rem; font-weight:700; color:var(--accent-red); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-        <span>⚠️</span> Validation Issues Detected ({{ errors|length }}):
-      </div>
-      <div style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding-right:4px;">
-        {% for err in errors[:25] %}
-        <div style="padding:8px 12px; background:rgba(239, 68, 68, 0.1); border-left:3px solid var(--accent-red); border-radius:var(--radius-sm); font-size:0.8rem; color:var(--text-secondary);">
-          {{ err }}
-        </div>
-        {% endfor %}
-        {% if errors|length > 25 %}
-        <div class="text-xs text-muted" style="text-align:center; padding-top:4px;">
-          ... and {{ errors|length - 25 }} additional issues. Check history error logs for full details.
-        </div>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-  </div>
-
-  <!-- Templates & Academic Export Center -->
-  <div style="display:flex; flex-direction:column; gap:24px;">
-
-    <!-- Sample Templates Download Card -->
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">📋 Download Standard Templates</div>
-          <div class="card-subtitle">Official schemas with pre-filled sample rows</div>
-        </div>
-      </div>
-
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px;">
-        <a href="{{ url_for('admin.download_template', category='students') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
-          🎓 Students Template
-        </a>
-        <a href="{{ url_for('admin.download_template', category='faculty') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
-          👨‍🏫 Faculty Template
-        </a>
-        <a href="{{ url_for('admin.download_template', category='marks_long') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
-          📊 Marks (Long Format)
-        </a>
-        <a href="{{ url_for('admin.download_template', category='marks_wide') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
-          📈 Marks (Wide Format)
-        </a>
-        <a href="{{ url_for('admin.download_template', category='attendance_sessions') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
-          📅 Attendance (Sessions)
-        </a>
-        <a href="{{ url_for('admin.download_template', category='attendance_aggregate') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
-          📊 Attendance (Aggregate)
-        </a>
-        <a href="{{ url_for('admin.download_template', category='subjects') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
-          📚 Subjects Template
-        </a>
-        <a href="{{ url_for('admin.download_template', category='examinations') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
-          📝 Examinations Template
-        </a>
-        <a href="{{ url_for('admin.download_template', category='departments_sections') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
-          🏛️ Dept & Sections Template
-        </a>
-      </div>
-    </div>
-
-    <!-- Export Center Card -->
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">📤 Academic Data Export Hub</div>
-          <div class="card-subtitle">Export institution-wide data in CSV or Excel</div>
-        </div>
-      </div>
-
-      <div style="display:flex; flex-direction:column; gap:12px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-color);">
-          <div>
-            <div style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">Student Roster & Enrollments</div>
-            <div class="text-xs text-muted">Complete records by department, section, semester</div>
-          </div>
-          <div style="display:flex; gap:6px;">
-            <a href="{{ url_for('admin.export_students', format='csv') }}" class="btn btn-secondary btn-sm">CSV</a>
-            <a href="{{ url_for('admin.export_students', format='excel') }}" class="btn btn-primary btn-sm">Excel</a>
-          </div>
-        </div>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-color);">
-          <div>
-            <div style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">Faculty & Course Assignments</div>
-            <div class="text-xs text-muted">Faculty profiles and assigned subjects</div>
-          </div>
-          <div style="display:flex; gap:6px;">
-            <a href="{{ url_for('admin.export_faculty', format='csv') }}" class="btn btn-secondary btn-sm">CSV</a>
-            <a href="{{ url_for('admin.export_faculty', format='excel') }}" class="btn btn-primary btn-sm">Excel</a>
-          </div>
-        </div>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-color);">
-          <div>
-            <div style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">Complete Marks Ledger</div>
-            <div class="text-xs text-muted">Subject-wise marks and assessment percentages</div>
-          </div>
-          <div style="display:flex; gap:6px;">
-            <a href="{{ url_for('admin.export_marks', format='csv') }}" class="btn btn-secondary btn-sm">CSV</a>
-            <a href="{{ url_for('admin.export_marks', format='excel') }}" class="btn btn-primary btn-sm">Excel</a>
-          </div>
-        </div>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-color);">
-          <div>
-            <div style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">Attendance Master Ledger</div>
-            <div class="text-xs text-muted">Session and subject attendance records</div>
-          </div>
-          <div style="display:flex; gap:6px;">
-            <a href="{{ url_for('admin.export_attendance', format='csv') }}" class="btn btn-secondary btn-sm">CSV</a>
-            <a href="{{ url_for('admin.export_attendance', format='excel') }}" class="btn btn-primary btn-sm">Excel</a>
-          </div>
-        </div>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-color);">
-          <div>
-            <div style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">Institution Analytics Summary</div>
-            <div class="text-xs text-muted">Department averages, attendance %, cohorts</div>
-          </div>
-          <div style="display:flex; gap:6px;">
-            <a href="{{ url_for('admin.export_analytics', format='csv') }}" class="btn btn-secondary btn-sm">CSV</a>
-            <a href="{{ url_for('admin.export_analytics', format='excel') }}" class="btn btn-primary btn-sm">Excel</a>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 
-<!-- Preview Table Section (if previewing) -->
-{% if preview_data %}
-<div class="card" style="margin-bottom:24px;">
-  <div class="card-header">
-    <div>
-      <div class="card-title">👁️ File Preview & Column Mapping (First {{ preview_data|length }} Rows)</div>
-      <div class="card-subtitle">Category: <strong style="color:var(--accent-blue);">{{ preview_category | replace('_', ' ') | capitalize }}</strong> &bull; Detected Columns: {{ preview_columns | join(', ') }}</div>
-    </div>
-    <button type="button" onclick="document.getElementById('datasetForm').querySelector('button[value=import]').click()" class="btn btn-primary btn-sm">
-      Confirm & Import File ✓
-    </button>
-  </div>
-
-  <div class="table-responsive" style="max-height:360px; overflow-y:auto;">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>#</th>
-          {% for col in preview_columns %}
-          <th>{{ col }}</th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in preview_data %}
-        <tr>
-          <td style="font-family:monospace; color:var(--text-muted); font-size:0.75rem;">{{ loop.index }}</td>
-          {% for col in preview_columns %}
-          <td class="text-sm" style="white-space:nowrap;">{{ row.get(col, '') }}</td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
-
-<!-- Import History & Audit Log -->
+<!-- Import History Audit Trail -->
 <div class="card">
   <div class="card-header">
     <div>
-      <div class="card-title">📜 Recent Import Audit Log</div>
-      <div class="card-subtitle">Transaction history of academic dataset uploads</div>
+      <div class="card-title">📋 Institutional Import History & Audit Trail</div>
+      <div class="card-subtitle">Recent workbook and batch imports with execution status</div>
     </div>
   </div>
 
@@ -323,46 +273,42 @@
     <table class="table">
       <thead>
         <tr>
-          <th>Category</th>
-          <th>File Name</th>
-          <th>Department</th>
-          <th>Import Date</th>
-          <th>Imported</th>
+          <th>Timestamp</th>
+          <th>Import Type</th>
+          <th>Filename</th>
+          <th>Saved</th>
           <th>Skipped</th>
           <th>Failed</th>
           <th>Status</th>
-          <th>Action</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for h in import_histories %}
         <tr>
-          <td style="font-weight:600; color:var(--text-primary);">
-            {{ h.category | replace('_', ' ') | capitalize }}
-          </td>
-          <td style="font-family:monospace; font-size:0.85rem;" title="{{ h.filename }}">
-            {{ h.filename }}
+          <td style="font-family:monospace; font-size:0.85rem; color:var(--text-secondary);">
+            {{ h.imported_at.strftime('%Y-%m-%d %H:%M') if h.imported_at else '—' }}
           </td>
           <td>
-            {{ h.department.code if h.department else 'Institution-wide' }}
+            <span class="badge {{ 'badge-purple' if h.category == 'master_workbook' else 'badge-secondary' }}">
+              {{ 'Master Workbook' if h.category == 'master_workbook' else h.category | capitalize }}
+            </span>
           </td>
-          <td class="text-sm text-muted">
-            {{ h.imported_at.strftime('%d %b %Y, %H:%M') if h.imported_at else '—' }}
+          <td style="font-weight:500; color:var(--text-primary); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            {{ h.filename }}
           </td>
-          <td style="color:var(--accent-green); font-weight:600;">{{ h.records_imported }}</td>
-          <td style="color:var(--accent-orange);">{{ h.records_skipped }}</td>
-          <td style="color:{{ 'var(--accent-red)' if h.records_failed > 0 else 'var(--text-muted)' }}; font-weight:{{ '700' if h.records_failed > 0 else '400' }};">
-            {{ h.records_failed }}
-          </td>
+          <td style="color:var(--accent-green); font-weight:700;">{{ h.records_imported }}</td>
+          <td style="color:var(--accent-orange); font-weight:600;">{{ h.records_skipped }}</td>
+          <td style="color:var(--accent-red); font-weight:700;">{{ h.records_failed }}</td>
           <td>
             <span class="badge {{ 'badge-success' if h.status == 'completed' else ('badge-warning' if h.status == 'partial' else 'badge-danger') }}">
               {{ h.status | capitalize }}
             </span>
           </td>
           <td>
-            {% if h.records_failed > 0 or h.records_skipped > 0 %}
+            {% if h.records_failed > 0 %}
             <a href="{{ url_for('admin.download_import_errors', history_id=h.id) }}" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:3px 8px;">
-              ⚠️ Error Log
+              📥 Error Audit
             </a>
             {% else %}
             <span class="text-xs text-muted">✓ Clean</span>
@@ -375,9 +321,8 @@
   </div>
   {% else %}
   <div class="empty-state">
-    <div class="empty-icon">📂</div>
-    <div class="empty-title">No import history recorded yet</div>
-    <div class="empty-text">Import records above to populate the institutional audit ledger.</div>
+    <div class="empty-icon">📋</div>
+    <div class="empty-title">No dataset imports recorded yet</div>
   </div>
   {% endif %}
 </div>
@@ -385,73 +330,55 @@
 
 {% block scripts %}
 <script>
-const categoryConfig = {
-  students: {
-    title: '🎓 Student Dataset Import',
-    subtitle: 'Upload student enrollment records in CSV or Excel format',
-    template: 'students',
-    reqs: '<strong style="color:var(--text-primary);">Required Columns:</strong> <code>roll_number</code>, <code>name</code><br><strong style="color:var(--text-secondary);">Optional:</strong> <code>email</code>, <code>department_code</code>, <code>section</code>, <code>semester</code>, <code>gender</code>, <code>phone</code>'
-  },
-  faculty: {
-    title: '👨‍🏫 Faculty Dataset Import',
-    subtitle: 'Upload faculty details and course teaching assignments',
-    template: 'faculty',
-    reqs: '<strong style="color:var(--text-primary);">Required Columns:</strong> <code>faculty_id</code>, <code>name</code><br><strong style="color:var(--text-secondary);">Optional:</strong> <code>email</code>, <code>department_code</code>, <code>designation</code>, <code>assigned_subjects</code> (comma separated codes), <code>assigned_sections</code>'
-  },
-  marks: {
-    title: '📊 Subject-Wise Student Marks Import',
-    subtitle: 'Upload assessment scores in Long Format or Wide Format (subjects as columns)',
-    template: 'marks_long',
-    reqs: '<strong style="color:var(--text-primary);">Long Format:</strong> <code>roll_number</code>, <code>subject_code</code>, <code>exam_name</code>, <code>marks_obtained</code>, <code>max_marks</code><br><strong style="color:var(--text-primary);">Wide Format:</strong> <code>roll_number</code>, <code>exam_name</code>, followed by Subject Code columns (e.g., <code>IT101</code>, <code>IT102</code>)'
-  },
-  attendance: {
-    title: '📅 Attendance Dataset Import',
-    subtitle: 'Upload daily session attendance logs or aggregate semester percentage counts',
-    template: 'attendance_sessions',
-    reqs: '<strong style="color:var(--text-primary);">Session Format:</strong> <code>roll_number</code>, <code>subject_code</code>, <code>date</code> (YYYY-MM-DD), <code>status</code> (present/absent)<br><strong style="color:var(--text-primary);">Aggregate Format:</strong> <code>roll_number</code>, <code>subject_code</code>, <code>total_classes</code>, <code>attended_classes</code>, <code>attendance_percentage</code>'
-  },
-  subjects: {
-    title: '📚 Subjects & Curriculum Import',
-    subtitle: 'Upload course catalogs, semester assignments, and credit structures',
-    template: 'subjects',
-    reqs: '<strong style="color:var(--text-primary);">Required Columns:</strong> <code>subject_code</code>, <code>subject_name</code><br><strong style="color:var(--text-secondary);">Optional:</strong> <code>department_code</code>, <code>semester</code>, <code>credits</code>, <code>subject_type</code> (theory/lab)'
-  },
-  examinations: {
-    title: '📝 Examinations Import',
-    subtitle: 'Upload test specifications, internal assessments, and semester exam criteria',
-    template: 'examinations',
-    reqs: '<strong style="color:var(--text-primary);">Required Columns:</strong> <code>subject_code</code>, <code>name</code>, <code>max_marks</code><br><strong style="color:var(--text-secondary);">Optional:</strong> <code>exam_type</code> (internal/semester), <code>semester</code>'
-  },
-  departments_sections: {
-    title: '🏛️ Departments & Sections Import',
-    subtitle: 'Upload academic departments and student section batches',
-    template: 'departments_sections',
-    reqs: '<strong style="color:var(--text-primary);">Required Columns:</strong> <code>department_code</code>, <code>department_name</code><br><strong style="color:var(--text-secondary);">Optional:</strong> <code>section_name</code>, <code>semester</code>, <code>description</code>'
-  }
-};
-
-function switchCategory(cat) {
-  const config = categoryConfig[cat];
-  if (!config) return;
-
-  document.getElementById('selectedCategory').value = cat;
-  document.getElementById('catTitle').innerHTML = config.title;
-  document.getElementById('catSubtitle').innerText = config.subtitle;
-  document.getElementById('colRequirements').innerHTML = config.reqs;
-  document.getElementById('sampleTemplateBtn').setAttribute('href', '/admin/dataset/template/' + config.template);
-
-  // Update tab button active states
-  document.querySelectorAll('.category-tab').forEach(btn => {
-    btn.className = 'btn btn-secondary btn-sm category-tab';
+function showMasterSample(cat) {
+  document.querySelectorAll('.master-sample-container').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.master-tab-btn').forEach(btn => {
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-secondary');
   });
-  const activeTab = document.getElementById('tab-' + cat);
-  if (activeTab) activeTab.className = 'btn btn-primary btn-sm category-tab';
+  const target = document.getElementById('msample-' + cat);
+  const targetBtn = document.getElementById('mtab-' + cat);
+  if (target) target.style.display = 'block';
+  if (targetBtn) {
+    targetBtn.classList.remove('btn-secondary');
+    targetBtn.classList.add('btn-primary');
+  }
 }
 
-// Initialize active tab from preview category if present
+// Auto open first tab if master preview is present
+{% if master_inspection and master_inspection.detected_sheets %}
 document.addEventListener('DOMContentLoaded', () => {
-  const initialCat = '{{ preview_category or "students" }}';
-  switchCategory(initialCat);
+  {% for cat in master_inspection.detected_sheets.keys() %}
+  {% if loop.first %}
+  showMasterSample('{{ cat }}');
+  {% endif %}
+  {% endfor %}
 });
+{% endif %}
+
+function toggleFallbackImport() {
+  const c = document.getElementById('fallbackImportContainer');
+  const btn = document.getElementById('toggleFallbackBtn');
+  if (c.style.display === 'none') {
+    c.style.display = 'block';
+    btn.innerText = 'Hide Fallback Forms ▴';
+  } else {
+    c.style.display = 'none';
+    btn.innerText = 'Show Fallback Forms ▾';
+  }
+}
+
+function switchCategory(cat) {
+  document.getElementById('selectedCategory').value = cat;
+  document.querySelectorAll('.category-tab').forEach(t => {
+    t.classList.remove('btn-primary');
+    t.classList.add('btn-secondary');
+  });
+  const activeTab = document.getElementById('tab-' + cat);
+  if (activeTab) {
+    activeTab.classList.remove('btn-secondary');
+    activeTab.classList.add('btn-primary');
+  }
+}
 </script>
 {% endblock %}

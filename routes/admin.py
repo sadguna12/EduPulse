@@ -6,6 +6,7 @@ import csv
 import io
 import os
 import json
+import re
 import pandas as pd
 from extensions import db
 from models import (
@@ -15,6 +16,11 @@ from models import (
     ImportHistory, StudentAggregateAttendance
 )
 from ml_pipeline import get_model_path, train_model, prepare_training_data
+from excel_importer import (
+    generate_master_workbook_template,
+    inspect_master_workbook,
+    execute_master_workbook_import
+)
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -421,6 +427,120 @@ def dataset():
     )
 
 
+@admin_bp.route('/dataset/master-template')
+@admin_required
+def download_master_template():
+    """Download the official EduPulse Master Excel Template containing all 7 sheets."""
+    buf = generate_master_workbook_template()
+    return send_file(
+        buf,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='EduPulse_Master_Template.xlsx'
+    )
+
+
+@admin_bp.route('/dataset/master-preview', methods=['POST'])
+@admin_required
+def master_preview():
+    """Upload and inspect master workbook containing all 7 sheets without committing changes."""
+    file = request.files.get('master_file')
+    dup_policy = request.form.get('duplicate_policy', 'skip')
+
+    if not file or not file.filename:
+        flash('Please select an Excel workbook (.xlsx) file to upload.', 'warning')
+        return redirect(url_for('admin.dataset'))
+
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        flash('Please upload a valid Excel workbook file (.xlsx).', 'danger')
+        return redirect(url_for('admin.dataset'))
+
+    upload_folder = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'uploads')
+    os.makedirs(upload_folder, exist_ok=True)
+    temp_path = os.path.join(upload_folder, f'staged_master_{current_user.id}.xlsx')
+    file.save(temp_path)
+
+    try:
+        inspection = inspect_master_workbook(temp_path)
+    except Exception as e:
+        flash(f'Failed to parse Excel workbook: {str(e)}', 'danger')
+        return redirect(url_for('admin.dataset'))
+
+    departments = Department.query.filter_by(is_active=True).order_by(Department.name).all()
+    academic_years = AcademicYear.query.order_by(AcademicYear.id.desc()).all()
+    sections = Section.query.filter_by(is_active=True).all()
+    import_histories = ImportHistory.query.order_by(ImportHistory.imported_at.desc()).limit(20).all()
+
+    flash(f"Master workbook '{file.filename}' parsed! Detected {inspection['summary']['total_sheets_detected']} worksheets with {inspection['summary']['total_rows']} total rows.", 'success')
+
+    return render_template(
+        'admin/dataset.html',
+        departments=departments,
+        academic_years=academic_years,
+        sections=sections,
+        import_histories=import_histories,
+        master_inspection=inspection,
+        master_filename=file.filename,
+        dup_policy=dup_policy
+    )
+
+
+@admin_bp.route('/dataset/master-confirm', methods=['POST'])
+@admin_required
+def master_confirm():
+    """Execute dependency-ordered transaction import for staged master workbook."""
+    upload_folder = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'uploads')
+    temp_path = os.path.join(upload_folder, f'staged_master_{current_user.id}.xlsx')
+    dup_policy = request.form.get('duplicate_policy', 'skip')
+    filename = request.form.get('filename', 'EduPulse_Dataset.xlsx')
+
+    if not os.path.exists(temp_path):
+        flash('No staged master workbook found to import. Please upload again.', 'warning')
+        return redirect(url_for('admin.dataset'))
+
+    result = execute_master_workbook_import(temp_path, dup_policy=dup_policy, user_id=current_user.id, filename=filename)
+
+    # Clean up staged file
+    try:
+        os.remove(temp_path)
+    except Exception:
+        pass
+
+    if result.get('success'):
+        counts = result.get('imported_counts', {})
+        summary_txt = (
+            f"✅ Master Workbook Import Completed! "
+            f"Saved {result['total_imported']} records across all 7 sheets "
+            f"(Depts: {counts.get('departments', 0)}, Students: {counts.get('students', 0)}, "
+            f"Faculty: {counts.get('faculty', 0)}, Subjects: {counts.get('subjects', 0)}, "
+            f"Exams: {counts.get('examinations', 0)}, Marks: {counts.get('marks', 0)}, "
+            f"Attendance: {counts.get('attendance', 0)}). "
+            f"Skipped {result['total_skipped']} duplicates."
+        )
+        flash(summary_txt, 'success')
+        if result.get('total_failed', 0) > 0:
+            flash(f"⚠️ {result['total_failed']} records had validation issues and were safely skipped. Check the import history log below for audit details.", 'warning')
+    else:
+        flash(result.get('error', 'Master import encountered a fatal error and all changes were safely rolled back.'), 'danger')
+
+    return redirect(url_for('admin.dataset'))
+
+
+@admin_bp.route('/dataset/master-cancel', methods=['POST'])
+@admin_required
+def master_cancel():
+    """Discard staged master workbook."""
+    upload_folder = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'uploads')
+    temp_path = os.path.join(upload_folder, f'staged_master_{current_user.id}.xlsx')
+    if os.path.exists(temp_path):
+        try:
+            os.remove(temp_path)
+        except Exception:
+            pass
+    flash('Master workbook preview cancelled. No changes were made to the database.', 'info')
+    return redirect(url_for('admin.dataset'))
+
+
 def _validate_preview(df, category, dept_id):
     """Run non-destructive pre-validation check on file columns and department bindings."""
     warnings = []
@@ -465,6 +585,12 @@ def _execute_dataset_import(df, category, dept_id, dup_policy, filename):
     failed = 0
     errors = []
 
+    # Clear any lingering read state before starting write transaction
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
+
     try:
         if category == 'departments_sections':
             imported, skipped, failed, errors = _import_departments_sections(df, dup_policy)
@@ -483,26 +609,38 @@ def _execute_dataset_import(df, category, dept_id, dup_policy, filename):
         else:
             errors.append(f"Unknown dataset category: {category}")
 
+        # Commit all academic records atomically
+        db.session.commit()
+
         status = 'completed' if failed == 0 else ('partial' if imported > 0 else 'failed')
 
-        # Persist Import History Log
-        history = ImportHistory(
-            category=category,
-            department_id=dept_id,
-            filename=filename,
-            records_imported=imported,
-            records_skipped=skipped,
-            records_failed=failed,
-            status=status,
-            error_summary=json.dumps(errors[:100]),
-            user_id=current_user.id
-        )
-        db.session.add(history)
-        db.session.commit()
+        # Persist Import History Log in an isolated block
+        try:
+            history = ImportHistory(
+                category=category,
+                department_id=dept_id,
+                filename=filename,
+                records_imported=imported,
+                records_skipped=skipped,
+                records_failed=failed,
+                status=status,
+                error_summary=json.dumps(errors),
+                user_id=current_user.id
+            )
+            db.session.add(history)
+            db.session.commit()
+        except Exception:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
 
         # Invalidate / Retrain ML models if marks were added
         if category == 'marks' and imported > 0:
-            _trigger_ml_retraining(dept_id)
+            try:
+                _trigger_ml_retraining(dept_id)
+            except Exception:
+                pass
 
         return {
             'imported': imported,
@@ -513,20 +651,29 @@ def _execute_dataset_import(df, category, dept_id, dup_policy, filename):
         }, errors
 
     except Exception as e:
-        db.session.rollback()
-        history = ImportHistory(
-            category=category,
-            department_id=dept_id,
-            filename=filename,
-            records_imported=0,
-            records_skipped=0,
-            records_failed=len(df),
-            status='failed',
-            error_summary=json.dumps([f"Fatal transaction error: {str(e)}"]),
-            user_id=current_user.id
-        )
-        db.session.add(history)
-        db.session.commit()
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        try:
+            history = ImportHistory(
+                category=category,
+                department_id=dept_id,
+                filename=filename,
+                records_imported=0,
+                records_skipped=0,
+                records_failed=len(df),
+                status='failed',
+                error_summary=json.dumps([f"Fatal transaction error: {str(e)}"]),
+                user_id=current_user.id
+            )
+            db.session.add(history)
+            db.session.commit()
+        except Exception:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
         return None, [f"Transaction aborted: {str(e)}"]
 
 
@@ -575,7 +722,7 @@ def _import_departments_sections(df, dup_policy):
                 sec = Section(name=sec_name, department_id=dept.id, semester=sem)
                 db.session.add(sec)
 
-    db.session.commit()
+    db.session.flush()
     return imported, skipped, failed, errors
 
 
@@ -663,7 +810,7 @@ def _import_students(df, selected_dept_id, dup_policy):
             db.session.add(stu)
             imported += 1
 
-    db.session.commit()
+    db.session.flush()
     return imported, skipped, failed, errors
 
 
@@ -766,7 +913,7 @@ def _import_faculty(df, selected_dept_id, dup_policy):
                                 faculty_id=faculty_obj.id, subject_id=sub.id, section_id=sec.id
                             ))
 
-    db.session.commit()
+    db.session.flush()
     return imported, skipped, failed, errors
 
 
@@ -823,7 +970,7 @@ def _import_subjects(df, selected_dept_id, dup_policy):
             db.session.add(sub)
             imported += 1
 
-    db.session.commit()
+    db.session.flush()
     return imported, skipped, failed, errors
 
 
@@ -884,7 +1031,7 @@ def _import_examinations(df, selected_dept_id, dup_policy):
             db.session.add(exam)
             imported += 1
 
-    db.session.commit()
+    db.session.flush()
     return imported, skipped, failed, errors
 
 
@@ -1011,7 +1158,7 @@ def _import_marks(df, selected_dept_id, dup_policy):
             db.session.add(mark_entry)
             imported += 1
 
-    db.session.commit()
+    db.session.flush()
     return imported, skipped, failed, errors
 
 
@@ -1129,17 +1276,19 @@ def _import_attendance(df, selected_dept_id, dup_policy):
                 db.session.add(att)
                 imported += 1
 
-    db.session.commit()
+    db.session.flush()
     return imported, skipped, failed, errors
 
 
 def _trigger_ml_retraining(dept_id=None):
     """Retrain ML models using actual marks from the database when new data arrives."""
     try:
-        depts = [Department.query.get(dept_id)] if dept_id else Department.query.filter_by(is_active=True).all()
+        with db.session.no_autoflush:
+            depts = [Department.query.get(dept_id)] if dept_id else Department.query.filter_by(is_active=True).all()
         for d in depts:
             if not d: continue
-            marks = Mark.query.join(Mark.student).filter(Student.department_id == d.id).all()
+            with db.session.no_autoflush:
+                marks = Mark.query.join(Mark.student).filter(Student.department_id == d.id).all()
             data = []
             for m in marks:
                 if m.examination:
@@ -1263,13 +1412,46 @@ def download_import_errors(history_id):
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Error Index', 'Error Description'])
+    writer.writerow(['Error Index', 'Worksheet', 'Row Number', 'Identifier', 'Rejected Value', 'Reason'])
+
+    score_pattern = re.compile(r"Score \(([-+]?\d*\.?\d+)\)", re.IGNORECASE)
+    row_pattern = re.compile(r"Row (\d+)", re.IGNORECASE)
+
     for i, err in enumerate(err_list, 1):
-        writer.writerow([i, err])
+        if isinstance(err, dict):
+            writer.writerow([
+                i,
+                err.get('worksheet', 'N/A'),
+                err.get('row_number', 'N/A'),
+                err.get('identifier', 'N/A'),
+                err.get('rejected_value', 'N/A'),
+                err.get('reason', err.get('message', ''))
+            ])
+        else:
+            err_str = str(err)
+            ws = 'N/A'
+            for prefix in ['Marks', 'Attendance', 'Students', 'Faculty', 'Subjects', 'Examinations', 'Departments']:
+                if err_str.startswith(prefix):
+                    ws = prefix
+                    break
+
+            row_m = row_pattern.search(err_str)
+            row_num = row_m.group(1) if row_m else 'N/A'
+
+            score_m = score_pattern.search(err_str)
+            rej_val = score_m.group(1) if score_m else 'N/A'
+
+            # Identifier if present in brackets or text
+            id_m = re.search(r"\[(.*?)\]", err_str) or re.search(r"student '([^']+)'", err_str) or re.search(r"for '([^']+)'", err_str)
+            identifier = id_m.group(1) if id_m else 'N/A'
+
+            reason = err_str.split(':', 1)[1].strip() if ':' in err_str else err_str
+            writer.writerow([i, ws, row_num, identifier, rej_val, reason])
+
     output.seek(0)
 
     return send_file(
-        io.BytesIO(output.getvalue().encode()),
+        io.BytesIO(output.getvalue().encode('utf-8')),
         mimetype='text/csv',
         as_attachment=True,
         download_name=f'import_errors_{history.category}_{history_id}.csv'

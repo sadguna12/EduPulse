@@ -7,6 +7,13 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         'sqlite:///' + os.path.join(BASE_DIR, 'edupulse.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'connect_args': {
+            'timeout': 30.0,
+            'check_same_thread': False,
+        },
+        'pool_pre_ping': True,
+    }
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = 3600
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload

@@ -1,45 +1,100 @@
 {% extends 'base.html' %}
 {% from 'macros/nav.html' import faculty_nav %}
 {% block title %}My Students{% endblock %}
-{% block page_title %}My Students{% endblock %}
+{% block page_title %}Assigned Students & Enrollment Directory{% endblock %}
 {% block nav %}{{ faculty_nav() }}{% endblock %}
 
 {% block content %}
-<div class="card mb-4" style="margin-bottom:16px;">
-  <form method="GET" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-    <div class="form-group" style="margin:0; flex:1; min-width:200px;">
+<div class="card mb-4" style="margin-bottom:20px;">
+  <form method="GET" action="{{ url_for('faculty.my_students') }}" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+    <div class="form-group" style="margin:0; flex:1; min-width:180px;">
       <label class="form-label">Search Student</label>
       <input type="text" name="search" class="form-control" placeholder="Name or roll number..." value="{{ search }}">
     </div>
+
     <div class="form-group" style="margin:0; min-width:160px;">
-      <label class="form-label">Filter by Section</label>
-      <select name="section_id" class="form-control">
-        <option value="">All Sections</option>
-        {% for s in sections %}<option value="{{ s.id }}" {{ 'selected' if section_id == s.id|string }}>{{ s.department.code if s.department else '' }}-{{ s.name }} (Sem {{ s.semester }})</option>{% endfor %}
+      <label class="form-label">Filter by Subject</label>
+      <select name="subject_id" class="form-control">
+        <option value="">All Taught Subjects</option>
+        {% for sub in subjects %}
+        <option value="{{ sub.id }}" {{ 'selected' if selected_subject_id == sub.id|string }}>{{ sub.code }} - {{ sub.name }}</option>
+        {% endfor %}
       </select>
     </div>
-    <button type="submit" class="btn btn-primary">🔍 Search</button>
-    <a href="{{ url_for('faculty.my_students') }}" class="btn btn-secondary">✕ Clear</a>
+
+    <div class="form-group" style="margin:0; min-width:140px;">
+      <label class="form-label">Section</label>
+      <select name="section_id" class="form-control">
+        <option value="">All Sections</option>
+        {% for s in sections %}
+        <option value="{{ s.id }}" {{ 'selected' if section_id == s.id|string }}>Sec {{ s.name }} (Sem {{ s.semester }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group" style="margin:0; width:120px;">
+      <label class="form-label">Semester</label>
+      <select name="semester" class="form-control">
+        <option value="">All Sem</option>
+        {% for sem in [1, 2, 3, 4, 5, 6, 7, 8] %}
+        <option value="{{ sem }}" {{ 'selected' if selected_semester == sem|string }}>Sem {{ sem }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group" style="margin:0; min-width:130px;">
+      <label class="form-label">Academic Year</label>
+      <select name="academic_year_id" class="form-control">
+        <option value="">All Years</option>
+        {% for ay in academic_years %}
+        <option value="{{ ay.id }}" {{ 'selected' if selected_ay_id == ay.id|string }}>{{ ay.year_label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="display:flex; gap:8px;">
+      <button type="submit" class="btn btn-primary">🔍 Filter</button>
+      {% if search or section_id or selected_subject_id or selected_semester or selected_ay_id %}
+      <a href="{{ url_for('faculty.my_students') }}" class="btn btn-secondary">✕ Reset</a>
+      {% endif %}
+    </div>
   </form>
 </div>
 
 <div class="card">
-  <div class="card-header">
-    <div class="card-title">🎓 Students ({{ students|length }})</div>
+  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <div class="card-title">🎓 Assigned Students ({{ students|length }})</div>
+      <div class="card-subtitle">Department: {{ faculty.department.name if faculty.department else 'Assigned Cohort' }}</div>
+    </div>
+    {% if students %}
+    <a href="{{ url_for('faculty.export_students') }}" class="btn btn-secondary btn-sm">
+      📥 Export Students CSV
+    </a>
+    {% endif %}
   </div>
+
   {% if students %}
-  <div class="table-wrapper" style="border:none;">
-    <table>
+  <div class="table-responsive">
+    <table class="table">
       <thead>
-        <tr><th>Roll No.</th><th>Name</th><th>Section</th><th>Semester</th><th>Email</th></tr>
+        <tr>
+          <th>Roll No.</th>
+          <th>Student Name</th>
+          <th>Department</th>
+          <th>Section</th>
+          <th>Semester</th>
+          <th>Email Address</th>
+        </tr>
       </thead>
       <tbody>
         {% for s in students %}
         <tr>
           <td><span class="badge badge-primary">{{ s.roll_number }}</span></td>
-          <td style="font-weight:500; color:var(--text-primary);">{{ s.name }}</td>
-          <td class="text-sm">{{ s.section.name if s.section else '—' }}</td>
-          <td class="text-sm">{{ s.current_semester }}</td>
+          <td style="font-weight:600; color:var(--text-primary);">{{ s.name }}</td>
+          <td><span class="badge badge-secondary">{{ s.department.code if s.department else '—' }}</span></td>
+          <td class="text-sm">Section {{ s.section.name if s.section else '—' }}</td>
+          <td class="text-sm">Semester {{ s.current_semester }}</td>
           <td class="text-sm text-muted">{{ s.email or '—' }}</td>
         </tr>
         {% endfor %}
@@ -47,10 +102,12 @@
     </table>
   </div>
   {% else %}
-  <div class="empty-state">
+  <div class="empty-state" style="padding:40px 20px;">
     <div class="empty-icon">🎓</div>
-    <div class="empty-title">No students found</div>
-    <div class="empty-text">{{ 'Try a different search.' if search else 'No students are assigned to your sections.' }}</div>
+    <div class="empty-title">No assigned students found</div>
+    <div class="empty-text">
+      {{ 'Try clearing your search and filter parameters.' if (search or section_id or selected_subject_id or selected_semester or selected_ay_id) else 'No students are currently enrolled in your assigned sections or department.' }}
+    </div>
   </div>
   {% endif %}
 </div>

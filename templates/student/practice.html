@@ -1,25 +1,67 @@
 {% extends 'base.html' %}
 {% from 'macros/nav.html' import student_nav %}
 {% block title %}Practice Question Bank{% endblock %}
-{% block page_title %}Interactive Practice & Self-Assessment{% endblock %}
+{% block page_title %}Interactive Practice & Question Bank{% endblock %}
 {% block nav %}{{ student_nav() }}{% endblock %}
 
 {% block content %}
-<!-- Filter & Stats Bar -->
+<!-- Practice Stats Summary -->
+<div class="stat-grid" style="margin-bottom:24px;">
+  <div class="stat-card blue">
+    <div class="stat-icon blue">📚</div>
+    <div class="stat-value">{{ stats.total_q if stats else questions|length }}</div>
+    <div class="stat-label">Available Questions</div>
+    <div class="stat-change neutral">In your course curriculum</div>
+  </div>
+  <div class="stat-card purple">
+    <div class="stat-icon purple">🎯</div>
+    <div class="stat-value">{{ stats.attempted if stats else 0 }}</div>
+    <div class="stat-label">Questions Attempted</div>
+    <div class="stat-change positive">Unique questions solved</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon green">✅</div>
+    <div class="stat-value">{{ stats.correct if stats else 0 }}</div>
+    <div class="stat-label">Correct Solves</div>
+    <div class="stat-change positive">Verified correct answers</div>
+  </div>
+  <div class="stat-card orange">
+    <div class="stat-icon orange">📈</div>
+    <div class="stat-value">{{ stats.accuracy if stats else 0 }}%</div>
+    <div class="stat-label">Overall Accuracy</div>
+    <div class="stat-change {{ 'positive' if stats and stats.accuracy >= 70 else 'negative' }}">
+      {{ 'Strong mastery' if stats and stats.accuracy >= 70 else 'Keep practicing' }}
+    </div>
+  </div>
+</div>
+
+<!-- Filter & Search Bar -->
 <div class="card" style="margin-bottom:24px;">
   <form method="GET" action="{{ url_for('student.practice') }}" style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end;">
-    <div style="flex:1; min-width:200px;">
-      <label class="form-label">Filter by Subject</label>
+    <div style="flex:1; min-width:220px;">
+      <label class="form-label">Subject</label>
       <select name="subject_id" class="form-control" onchange="this.form.submit()">
-        <option value="">All Registered Subjects</option>
+        <option value="">All Registered Subjects ({{ student.department.code if student.department else '' }})</option>
         {% for s in subjects %}
         <option value="{{ s.id }}" {{ 'selected' if subj_filter == s.id|string else '' }}>{{ s.name }} ({{ s.code }})</option>
         {% endfor %}
       </select>
     </div>
 
-    <div style="width:180px;">
-      <label class="form-label">Difficulty Level</label>
+    {% if topics %}
+    <div style="width:200px;">
+      <label class="form-label">Topic / Unit</label>
+      <select name="topic" class="form-control" onchange="this.form.submit()">
+        <option value="">All Topics</option>
+        {% for t in topics %}
+        <option value="{{ t }}" {{ 'selected' if topic_filter == t else '' }}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <div style="width:170px;">
+      <label class="form-label">Difficulty</label>
       <select name="difficulty" class="form-control" onchange="this.form.submit()">
         <option value="">All Difficulties</option>
         <option value="easy" {{ 'selected' if diff_filter == 'easy' else '' }}>🟢 Easy</option>
@@ -29,8 +71,8 @@
     </div>
 
     <div style="display:flex; gap:8px;">
-      <button type="submit" class="btn btn-primary">Apply Filters</button>
-      {% if subj_filter or diff_filter %}
+      <button type="submit" class="btn btn-primary">Apply</button>
+      {% if subj_filter or diff_filter or topic_filter %}
       <a href="{{ url_for('student.practice') }}" class="btn btn-secondary">Reset</a>
       {% endif %}
     </div>
@@ -40,7 +82,7 @@
 <!-- Questions Count Badge -->
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
   <div style="font-size:0.95rem; color:var(--text-secondary);">
-    Showing <strong style="color:var(--text-primary);">{{ questions|length }}</strong> practice questions
+    Displaying <strong style="color:var(--text-primary);">{{ questions|length }}</strong> practice questions for <strong style="color:var(--text-primary);">{{ student.department.name if student.department else 'Curriculum' }}</strong>
   </div>
 </div>
 
@@ -48,22 +90,23 @@
 {% if questions %}
 <div style="display:flex; flex-direction:column; gap:20px;">
   {% for q in questions %}
-  {% set stats = attempt_counts.get(q.id, {'total': 0, 'correct': 0}) %}
+  {% set stats_q = attempt_counts.get(q.id, {'total': 0, 'correct': 0}) %}
   <div class="card" style="border:1px solid var(--border-color); border-radius:var(--radius-lg); position:relative; overflow:hidden;">
     <div class="card-header" style="border-bottom:1px solid var(--border-color); background:rgba(255,255,255,0.01);">
-      <div style="display:flex; align-items:center; gap:10px;">
-        <span class="badge badge-purple">{{ q.subject.name if q.subject else 'Subject' }}</span>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span class="badge badge-purple">{{ q.subject.code }}: {{ q.subject.name if q.subject else 'Subject' }}</span>
+        {% if q.topic %}<span class="badge badge-primary">📌 {{ q.topic }}</span>{% endif %}
         <span class="badge {{ 'badge-success' if q.difficulty == 'easy' else ('badge-warning' if q.difficulty == 'medium' else 'badge-danger') }}">
           {{ q.difficulty | capitalize }}
         </span>
       </div>
       <div>
-        {% if stats.total > 0 %}
-        <span class="badge {{ 'badge-success' if stats.correct > 0 else 'badge-warning' }}" style="font-size:0.75rem;">
-          Attempts: {{ stats.total }} | Correct: {{ stats.correct }}
+        {% if stats_q.total > 0 %}
+        <span class="badge {{ 'badge-success' if stats_q.correct > 0 else 'badge-warning' }}" style="font-size:0.75rem;">
+          Attempts: {{ stats_q.total }} | Solved Correctly: {{ stats_q.correct }}
         </span>
         {% else %}
-        <span class="badge badge-primary" style="font-size:0.75rem;">Unattempted</span>
+        <span class="badge badge-secondary" style="font-size:0.75rem;">Unattempted</span>
         {% endif %}
       </div>
     </div>
@@ -75,7 +118,7 @@
       </div>
 
       <!-- MCQ Options Form -->
-      <form method="POST" action="{{ url_for('student.attempt_question', question_id=q.id, subject_id=subj_filter) }}">
+      <form method="POST" action="{{ url_for('student.attempt_question', question_id=q.id, subject_id=subj_filter, topic=topic_filter, difficulty=diff_filter) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
@@ -123,11 +166,13 @@
   {% endfor %}
 </div>
 {% else %}
-<div class="empty-state">
+<div class="empty-state" style="padding:40px 20px;">
   <div class="empty-icon">❓</div>
-  <div class="empty-title">No questions found matching criteria</div>
-  <div class="empty-text">Try resetting filters or check back later when faculty add new questions.</div>
-  <a href="{{ url_for('student.practice') }}" class="btn btn-secondary mt-2">Clear Filters</a>
+  <div class="empty-title">No questions found for this subject or filter</div>
+  <div class="empty-text">No practice questions have been added for this subject yet. Please ask your course faculty to upload questions in the faculty portal.</div>
+  {% if subj_filter or diff_filter or topic_filter %}
+  <a href="{{ url_for('student.practice') }}" class="btn btn-secondary mt-2">Clear All Filters</a>
+  {% endif %}
 </div>
 {% endif %}
 {% endblock %}

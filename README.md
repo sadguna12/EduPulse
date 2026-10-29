@@ -72,38 +72,70 @@ Built without external generative AI APIs, EduPulse uses conventional machine le
 
 ---
 
-## 📋 Dataset Specifications & Template Reference
+---
 
-EduPulse supports both `.csv` and Excel (`.xlsx`, `.xls`) files. Standard templates can be downloaded directly from the Dataset Management interface:
+## 📊 Unified Master Excel Workbook Architecture (`EduPulse_Dataset.xlsx`)
 
-### 1. Students (`students`)
-- **Required**: `roll_number`, `name`
-- **Optional**: `email`, `phone`, `department_code`, `section`, `semester`, `gender`
-- *Note*: If `department_code` is not in the file, select the Target Department in the UI dropdown.
+EduPulse features a single-workbook import pipeline that replaces the legacy seven-file workflow with ONE comprehensive `.xlsx` workbook containing seven synchronized worksheets:
 
-### 2. Faculty (`faculty`)
-- **Required**: `faculty_id`, `name`
-- **Optional**: `email`, `phone`, `department_code`, `designation`, `assigned_subjects` (comma-separated codes e.g. `IT101,IT201`), `assigned_sections` (comma-separated section letters e.g. `A,B`)
+```mermaid
+graph TD
+    A[Admin Downloads Master Excel Template] --> B[Populate 7 Worksheets]
+    B --> C[Upload EduPulse_Dataset.xlsx]
+    C --> D[Column & Sheet Alias Normalization Engine]
+    D --> E[Multi-Sheet Validation & Cross-Dependency Audit]
+    E -->|Valid| F[Staged Atomic Transaction Commit]
+    E -->|Missing CS Dept / Unknown IDs| G[Detailed Preview with Fix Recommendations]
+    F --> H[1. Departments & Sections]
+    H --> I[2. Students & Faculty with Hashed Accounts]
+    I --> J[3. Subjects & Faculty-Section Assignments]
+    J --> K[4. Examination Definitions]
+    K --> L[5. Marks Validation & Ingestion]
+    L --> M[6. Attendance Records & Aggregate Stats]
+    M --> N[Automatic Academic Refresh & ML Retrain]
+```
 
-### 3. Subject-Wise Marks (`marks`)
-- **Long Format**: `roll_number`, `subject_code`, `exam_name`, `marks_obtained`, `max_marks`
-- **Wide Format**: `roll_number`, `exam_name`, followed by Subject Code columns (e.g., `IT101`, `IT102`, `IT103`)
+### 1. Download Master Template
+Admins can click **Download Master Excel Template** from **Admin → Dataset Management**. This generates an `.xlsx` file containing:
+- An **Instructions** worksheet with ID relationship guides, column formats, and sample guidelines.
+- Pre-formatted sheets with styled navy-blue headers, auto-fitted column widths, and valid synthetic example records across multiple departments (`IT`, `CS`).
 
-### 4. Attendance (`attendance`)
-- **Session Format**: `roll_number`, `subject_code`, `date` (YYYY-MM-DD), `status` (`present`, `absent`, `late`)
-- **Aggregate Format**: `roll_number`, `subject_code`, `total_classes`, `attended_classes`, `attendance_percentage`
+---
 
-### 5. Subjects (`subjects`)
-- **Required**: `subject_code`, `subject_name`
-- **Optional**: `department_code`, `semester`, `credits`, `subject_type` (`theory`, `lab`)
+### 2. Supported Worksheet Schemas & Column Aliases
 
-### 6. Examinations (`examinations`)
-- **Required**: `subject_code`, `name`, `max_marks`
-- **Optional**: `exam_type` (`internal`, `semester`, `assignment`), `semester`
+The import engine normalizes sheet names and column headers automatically (handling case, whitespace, underscores, and common variations):
 
-### 7. Departments & Sections (`departments_sections`)
-- **Required**: `department_code`, `department_name`
-- **Optional**: `section_name`, `semester`, `description`
+| Canonical Sheet | Recognized Sheet Aliases | Required Columns | Recognized Column Aliases | Supported Format / Notes |
+|---|---|---|---|---|
+| **`Departments`** | `Departments`, `Departments & Sections`, `Dept` | `department_code`, `department_name` | `dept_code`, `dept_name`, `department` | Optional: `section_name`, `academic_year`, `semester` |
+| **`Students`** | `Students`, `Student Details`, `Student_Data` | `roll_number`, `full_name` | `student_id`, `roll_no`, `name`, `student_name` | Optional: `email`, `department_code`, `section`, `semester`, `academic_year` |
+| **`Faculty`** | `Faculty`, `Faculty Details`, `Staff` | `faculty_id`, `full_name` | `staff_id`, `faculty_name`, `name` | Optional: `email`, `department_code`, `designation`, `subject_codes`, `section_assignments` |
+| **`Subjects`** | `Subjects`, `Subject Details`, `Courses` | `subject_code`, `subject_name` | `subject_id`, `course_code`, `code`, `title` | Optional: `department_code`, `semester`, `academic_year`, `section`, `faculty_id`, `max_marks` |
+| **`Examinations`** | `Examinations`, `Exams`, `Assessments` | `exam_id` or `exam_name` | `examination`, `test_name`, `exam_title` | Optional: `department_code`, `semester`, `academic_year`, `exam_type` |
+| **`Marks`** | `Marks`, `Student Marks`, `Results` | `roll_number`, `subject_code`, `exam_id`, `marks_obtained` | `marks`, `score`, `marks_scored`, `max_score` | Supports **Long Format** and auto-unpivots **Wide Format** matrices |
+| **`Attendance`** | `Attendance`, `Attendance Records`, `Attendance Logs` | `roll_number`, `subject_code` | `status`, `attendance_status`, `date` | Supports **Session Logs** (`date`, `status`) and **Aggregate Stats** (`total_classes`, `attended_classes`, `attendance_percentage`) |
+
+---
+
+### 3. Department & Academic Intelligence Rules
+
+1. **Department Isolation & Zero Silent Discards**:
+   - If students or faculty reference a department (e.g. `CS`) not defined in the `Departments` sheet or database, the importer **explicitly reports the missing department** in the preview and will never silently drop CS students or assign them to IT.
+2. **Deterministic Weekly Study Plan**:
+   - Generates priority-weighted study tasks based on real academic signals:
+     - High Priority: Subjects where marks < 60% or attendance < 75%.
+     - Medium Priority: Practice accuracy < 60%.
+     - Normal Priority: Maintenance revision for strong subjects (≥75%).
+   - Students can mark tasks complete, track progress, and trigger immediate recalculation via **Recalculate AI Study Plan**.
+3. **Subject-Scoped Practice Question Bank**:
+   - Students only see practice questions for subjects belonging to their registered department and semester.
+   - Cross-department questions are strictly filtered out.
+   - Interactive feedback verifies option choices, logs attempt history, and updates student practice accuracy.
+4. **Faculty Dynamic Assignment & Filtering**:
+   - Faculty members access students through explicit `FacultySubjectAssignment` links.
+   - Multi-criteria filtering by **Subject**, **Section**, **Semester**, and **Academic Year** dynamically loads cohorts.
+   - Strict backend authorization ensures faculty cannot view or modify grades outside their authorized scope.
 
 ---
 
@@ -118,7 +150,6 @@ pip install -r requirements.txt
 ```
 
 ### 3. Seed Database & Train Initial ML Models
-Generate realistic synthetic data for departments, courses, students, faculty, examinations, attendance records, questions, and train initial models:
 ```bash
 python seed_data.py
 ```
@@ -127,32 +158,40 @@ python seed_data.py
 ```bash
 python app.py
 ```
-Open your browser and navigate to:
+Open your browser and navigate to `http://127.0.0.1:5000`.
+
+---
+
+## 🧪 Comprehensive Verification Suite
+
+Run the full end-to-end verification suite testing all 9 functional layers:
+```bash
+python test_all_features.py
 ```
-http://127.0.0.1:5000
-```
+
+### Test Suite Coverage:
+- `[TEST 1]` **Master Excel Template Generation**: Validates workbook creation with all 7 sheets, header styling, and synthetic records.
+- `[TEST 2]` **Master Workbook Inspection**: Validates sheet/column alias resolution and row counting.
+- `[TEST 3]` **Missing Dependency Detection**: Validates explicit reporting of unconfigured departments (e.g., CS) without silent drops.
+- `[TEST 4]` **Atomic Master Import**: Validates transactional commit, ID bindings, and Werkzeug-hashed credentials.
+- `[TEST 5]` **Safe Duplicate Prevention**: Validates repeated import under `skip` duplicate policy.
+- `[TEST 6]` **Student Portal Workflows**: Validates real-record Dashboard, Performance, Prediction, Weak Areas, Attendance, Deterministic Study Plan, Practice Questions, Goals, and CSV Exports.
+- `[TEST 7]` **Faculty Portal Workflows**: Validates assigned cohort Dashboard, dynamic student directory with semester/subject filters, Marks entry, and Question Bank creation.
+- `[TEST 8]` **Role-Based Security**: Validates strict backend denial of cross-role and cross-student access.
+- `[TEST 9]` **Admin Master Template Endpoint**: Validates downloadable `.xlsx` serving with spreadsheet MIME type.
 
 ---
 
 ## 🔑 Demo Login Credentials
 
-The database comes pre-seeded with sample users for all roles (passwords match the IDs):
+All initial demonstration accounts have default passwords equal to their account ID:
 
-### Administrator
-| Role | User ID / Username | Password |
-|---|---|---|
-| **System Admin** | `ADMIN001` | `ADMIN001` |
-
-### Faculty
-| Role | User ID / Username | Password | Department |
+| Role | User ID / Roll Number | Default Password | Department / Description |
 |---|---|---|---|
-| **Faculty (IT)** | `FACIT01` | `FACIT01` | Information Technology |
-| **Faculty (IT)** | `FACIT02` | `FACIT02` | Information Technology |
-| **Faculty (CS)** | `FACCS01` | `FACCS01` | Computer Science |
+| **System Admin** | `ADMIN001` | `ADMIN001` | Institution Administrator |
+| **Faculty (IT)** | `FACIT01` | `FACIT01` | Information Technology (Assigned IT101, IT102) |
+| **Faculty (IT)** | `FACIT02` | `FACIT02` | Information Technology (Assigned IT103, IT104) |
+| **Faculty (CS)** | `FACCS01` | `FACCS01` | Computer Science (Assigned CS101, CS102) |
+| **Student (IT)** | `IT24001A` | `IT24001A` | IT, Semester 1, Section A |
+| **Student (CS)** | `CS24001A` | `CS24001A` | CS, Semester 1, Section A |
 
-### Students
-| Role | Roll Number / ID | Password | Department / Semester |
-|---|---|---|---|
-| **Student** | `IT24001A` | `IT24001A` | IT, Semester 1, Section A |
-| **Student** | `IT23001A` | `IT23001A` | IT, Semester 2, Section A |
-| **Student** | `IT22001A` | `IT22001A` | IT, Semester 3, Section A |

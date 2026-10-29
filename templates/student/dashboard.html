@@ -36,7 +36,7 @@
   </div>
   <div class="stat-card purple">
     <div class="stat-icon purple">📚</div>
-    <div class="stat-value">{{ subject_avgs|length }}</div>
+    <div class="stat-value">{{ subject_count if subject_count is defined else subject_avgs|length }}</div>
     <div class="stat-label">Subjects This Semester</div>
   </div>
   <div class="stat-card orange">

@@ -1,7 +1,8 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
-from models import Department, Subject, Section, Student, Mark, AttendanceRecord, Examination
+from models import Department, Subject, Section, Student, Mark, AttendanceRecord, StudentAggregateAttendance, Examination, Faculty, FacultySubjectAssignment
 from extensions import db
+from collections import defaultdict
 
 api_bp = Blueprint('api', __name__)
 
@@ -16,6 +17,15 @@ def get_departments():
 @api_bp.route('/subjects/<int:dept_id>/<int:semester>')
 @login_required
 def get_subjects(dept_id, semester):
+    if current_user.role == 'student':
+        stu = Student.query.filter_by(user_id=current_user.id).first()
+        if not stu or stu.department_id != dept_id:
+            return jsonify({'error': 'Access denied'}), 403
+    elif current_user.role == 'faculty':
+        fac = Faculty.query.filter_by(user_id=current_user.id).first()
+        if not fac or fac.department_id != dept_id:
+            return jsonify({'error': 'Access denied'}), 403
+
     subjects = Subject.query.filter_by(department_id=dept_id, semester=semester, is_active=True).all()
     return jsonify([{'id': s.id, 'name': s.name, 'code': s.code} for s in subjects])
 
@@ -23,6 +33,11 @@ def get_subjects(dept_id, semester):
 @api_bp.route('/sections/<int:dept_id>')
 @login_required
 def get_sections(dept_id):
+    if current_user.role == 'faculty':
+        fac = Faculty.query.filter_by(user_id=current_user.id).first()
+        if not fac or fac.department_id != dept_id:
+            return jsonify({'error': 'Access denied'}), 403
+
     semester = request.args.get('semester', type=int)
     query = Section.query.filter_by(department_id=dept_id, is_active=True)
     if semester:
@@ -34,6 +49,12 @@ def get_sections(dept_id):
 @api_bp.route('/examinations/<int:subject_id>')
 @login_required
 def get_examinations(subject_id):
+    sub = Subject.query.get_or_404(subject_id)
+    if current_user.role == 'faculty':
+        fac = Faculty.query.filter_by(user_id=current_user.id).first()
+        if not fac or fac.department_id != sub.department_id:
+            return jsonify({'error': 'Access denied'}), 403
+
     section_id = request.args.get('section_id', type=int)
     query = Examination.query.filter_by(subject_id=subject_id, is_active=True)
     if section_id:
@@ -48,6 +69,17 @@ def get_examinations(subject_id):
 def get_section_students(section_id):
     if current_user.role == 'student':
         return jsonify({'error': 'Access denied'}), 403
+
+    sec = Section.query.get_or_404(section_id)
+    if current_user.role == 'faculty':
+        fac = Faculty.query.filter_by(user_id=current_user.id).first()
+        if not fac:
+            return jsonify({'error': 'Access denied'}), 403
+        # Check section belongs to faculty's department or assignments
+        assigned = FacultySubjectAssignment.query.filter_by(faculty_id=fac.id, section_id=section_id, is_active=True).first()
+        if not assigned and fac.department_id != sec.department_id:
+            return jsonify({'error': 'Access denied: section outside authorized department'}), 403
+
     students = Student.query.filter_by(section_id=section_id, is_active=True).order_by(Student.roll_number).all()
     return jsonify([{'id': s.id, 'name': s.name, 'roll_number': s.roll_number} for s in students])
 
@@ -55,12 +87,16 @@ def get_section_students(section_id):
 @api_bp.route('/chart/performance/<int:student_id>')
 @login_required
 def student_performance_chart(student_id):
-    # Authorization check
+    # Role-based authorization check
     if current_user.role == 'student':
-        from models import Student
         stu = Student.query.filter_by(user_id=current_user.id).first()
         if not stu or stu.id != student_id:
             return jsonify({'error': 'Access denied'}), 403
+    elif current_user.role == 'faculty':
+        fac = Faculty.query.filter_by(user_id=current_user.id).first()
+        target_stu = Student.query.get_or_404(student_id)
+        if not fac or target_stu.department_id != fac.department_id:
+            return jsonify({'error': 'Access denied: student belongs to different department'}), 403
 
     marks = Mark.query.filter_by(student_id=student_id).all()
     data = {}
@@ -83,24 +119,34 @@ def student_performance_chart(student_id):
 @login_required
 def student_attendance_chart(student_id):
     if current_user.role == 'student':
-        from models import Student
         stu = Student.query.filter_by(user_id=current_user.id).first()
         if not stu or stu.id != student_id:
             return jsonify({'error': 'Access denied'}), 403
+    elif current_user.role == 'faculty':
+        fac = Faculty.query.filter_by(user_id=current_user.id).first()
+        target_stu = Student.query.get_or_404(student_id)
+        if not fac or target_stu.department_id != fac.department_id:
+            return jsonify({'error': 'Access denied: student belongs to different department'}), 403
 
     records = AttendanceRecord.query.filter_by(student_id=student_id).all()
-    from collections import defaultdict
-    by_subject = defaultdict(lambda: {'present': 0, 'total': 0})
-    for r in records:
-        subj_name = r.subject.name if r.subject else 'Unknown'
-        by_subject[subj_name]['total'] += 1
-        if r.status == 'present':
-            by_subject[subj_name]['present'] += 1
+    if records:
+        by_subject = defaultdict(lambda: {'present': 0, 'total': 0})
+        for r in records:
+            subj_name = r.subject.name if r.subject else 'Unknown'
+            by_subject[subj_name]['total'] += 1
+            if r.status == 'present':
+                by_subject[subj_name]['present'] += 1
 
-    labels = list(by_subject.keys())
-    percentages = [
-        round(by_subject[s]['present'] / by_subject[s]['total'] * 100, 1)
-        if by_subject[s]['total'] > 0 else 0
-        for s in labels
-    ]
+        labels = list(by_subject.keys())
+        percentages = [
+            round(by_subject[s]['present'] / by_subject[s]['total'] * 100, 1)
+            if by_subject[s]['total'] > 0 else 0
+            for s in labels
+        ]
+        return jsonify({'labels': labels, 'percentages': percentages})
+
+    # Fallback to StudentAggregateAttendance
+    aggs = StudentAggregateAttendance.query.filter_by(student_id=student_id).all()
+    labels = [a.subject.name if a.subject else 'Unknown' for a in aggs]
+    percentages = [round(a.attendance_percentage, 1) if a.attendance_percentage else (round(a.attended_classes / a.total_classes * 100, 1) if a.total_classes > 0 else 0) for a in aggs]
     return jsonify({'labels': labels, 'percentages': percentages})

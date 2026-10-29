@@ -1,8 +1,44 @@
 import os
 from flask import Flask
+import sqlite3
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 from config import config
 from extensions import db, login_manager, csrf
 from models import User
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA busy_timeout = 30000;")
+        cursor.execute("PRAGMA foreign_keys = ON;")
+        cursor.close()
+
+
+def configure_sqlite_wal(app):
+    """
+    Ensure SQLite database uses Write-Ahead Logging (WAL) mode.
+    Only runs if using a file-based SQLite database.
+    Operates outside active transactions using autocommit mode.
+    """
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if db_uri.startswith('sqlite:///') and not db_uri.startswith('sqlite:///:memory:'):
+        db_path = db_uri.replace('sqlite:///', '')
+        if os.path.exists(db_path):
+            try:
+                conn = sqlite3.connect(db_path, timeout=30.0, isolation_level=None)
+                cur = conn.cursor()
+                cur.execute("PRAGMA journal_mode;")
+                row = cur.fetchone()
+                if row and row[0].lower() != 'wal':
+                    cur.execute("PRAGMA journal_mode = WAL;")
+                cur.execute("PRAGMA synchronous = NORMAL;")
+                cur.close()
+                conn.close()
+            except Exception:
+                pass
 
 
 def create_app(config_name=None):
@@ -18,6 +54,7 @@ def create_app(config_name=None):
 
     # Initialize extensions
     db.init_app(app)
+    configure_sqlite_wal(app)
     login_manager.init_app(app)
     csrf.init_app(app)
 

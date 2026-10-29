@@ -526,8 +526,11 @@ select.form-control { cursor: pointer; }
 .form-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
 
 /* ── Tables ──────────────────────────────────────────────────── */
-.table-wrapper {
+.table-wrapper,
+.table-responsive {
+  width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
 }

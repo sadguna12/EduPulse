@@ -4,6 +4,7 @@ from functools import wraps
 from datetime import datetime, date, timedelta
 import csv
 import io
+import pandas as pd
 from extensions import db
 from models import (
     Faculty, Student, Subject, Section, Examination, Mark,
@@ -29,31 +30,80 @@ def get_current_faculty():
 
 
 def get_faculty_sections(fac):
-    """Returns distinct sections assigned to this faculty member."""
+    """
+    Returns distinct sections assigned to this faculty member.
+    Falls back to department sections if direct assignments are not yet configured.
+    """
     assignments = FacultySubjectAssignment.query.filter_by(faculty_id=fac.id, is_active=True).all()
     section_ids = list({a.section_id for a in assignments if a.section_id})
-    return Section.query.filter(Section.id.in_(section_ids)).all()
+    if section_ids:
+        return Section.query.filter(Section.id.in_(section_ids), Section.is_active == True).all()
+    # Fallback to faculty's own department sections
+    if fac.department_id:
+        return Section.query.filter_by(department_id=fac.department_id, is_active=True).all()
+    return []
 
 
 def get_faculty_subjects(fac, section_id=None):
+    """
+    Returns subjects taught by this faculty member.
+    Falls back to department subjects if direct assignments are not yet configured.
+    """
     query = FacultySubjectAssignment.query.filter_by(faculty_id=fac.id, is_active=True)
     if section_id:
         query = query.filter_by(section_id=section_id)
     assignments = query.all()
     subject_ids = list({a.subject_id for a in assignments})
-    return Subject.query.filter(Subject.id.in_(subject_ids)).all()
+    if subject_ids:
+        return Subject.query.filter(Subject.id.in_(subject_ids), Subject.is_active == True).all()
+    if fac.department_id:
+        return Subject.query.filter_by(department_id=fac.department_id, is_active=True).all()
+    return []
 
 
-def get_faculty_students(fac, section_id=None):
+def get_faculty_students(fac, section_id=None, subject_id=None, semester=None, academic_year_id=None):
+    """
+    Dynamically loads students assigned to this faculty member with multi-criteria filtering
+    and strict backend department/section authorization.
+    """
     sections = get_faculty_sections(fac)
-    if section_id:
-        sections = [s for s in sections if s.id == int(section_id)]
-    section_ids = [s.id for s in sections]
-    if not section_ids:
+    sec_ids = [s.id for s in sections]
+
+    query = Student.query.filter(Student.is_active == True)
+    if sec_ids and fac.department_id:
+        query = query.filter(db.or_(Student.section_id.in_(sec_ids), Student.department_id == fac.department_id))
+    elif sec_ids:
+        query = query.filter(Student.section_id.in_(sec_ids))
+    elif fac.department_id:
+        query = query.filter(Student.department_id == fac.department_id)
+    else:
         return []
-    return Student.query.filter(
-        Student.section_id.in_(section_ids), Student.is_active == True
-    ).order_by(Student.name).all()
+
+    # Filter by section
+    if section_id and str(section_id).isdigit():
+        sec_int = int(section_id)
+        if sec_int in sec_ids:
+            query = query.filter(Student.section_id == sec_int)
+        else:
+            return []
+
+    # Filter by semester
+    if semester and str(semester).isdigit():
+        query = query.filter(Student.current_semester == int(semester))
+
+    # Filter by academic year
+    if academic_year_id and str(academic_year_id).isdigit():
+        query = query.filter(Student.academic_year_id == int(academic_year_id))
+
+    # Filter by subject (students enrolled in that subject's semester/department)
+    if subject_id and str(subject_id).isdigit():
+        sub = Subject.query.get(int(subject_id))
+        if sub and (sub.department_id == fac.department_id or sub.id in [s.id for s in get_faculty_subjects(fac)]):
+            query = query.filter(Student.current_semester == sub.semester)
+        else:
+            return []
+
+    return query.order_by(Student.roll_number).all()
 
 
 @faculty_bp.route('/dashboard')
@@ -68,11 +118,12 @@ def dashboard():
     subjects = get_faculty_subjects(fac)
     students = get_faculty_students(fac)
 
-    # Pending tasks: students with no marks in recent exams
-    student_ids = [s.id for s in students]
-    recent_exams = Examination.query.filter(
-        Examination.subject_id.in_([s.id for s in subjects])
-    ).order_by(Examination.created_at.desc()).limit(5).all()
+    # Recent exams in faculty subjects
+    recent_exams = []
+    if subjects:
+        recent_exams = Examination.query.filter(
+            Examination.subject_id.in_([s.id for s in subjects])
+        ).order_by(Examination.created_at.desc()).limit(5).all()
 
     return render_template('faculty/dashboard.html',
                            faculty=fac,
@@ -90,19 +141,38 @@ def my_students():
         return redirect(url_for('auth.login'))
 
     section_id = request.args.get('section_id', '')
-    search = request.args.get('search', '')
+    subject_id = request.args.get('subject_id', '')
+    semester = request.args.get('semester', '')
+    academic_year_id = request.args.get('academic_year_id', '')
+    search = request.args.get('search', '').strip()
+
     sections = get_faculty_sections(fac)
-    students = get_faculty_students(fac, section_id=section_id if section_id else None)
+    subjects = get_faculty_subjects(fac)
+    academic_years = AcademicYear.query.order_by(AcademicYear.id.desc()).all()
+
+    students = get_faculty_students(
+        fac,
+        section_id=section_id,
+        subject_id=subject_id,
+        semester=semester,
+        academic_year_id=academic_year_id
+    )
 
     if search:
+        search_lower = search.lower()
         students = [s for s in students
-                    if search.lower() in s.name.lower() or search.lower() in s.roll_number.lower()]
+                    if search_lower in s.name.lower() or search_lower in s.roll_number.lower()]
 
     return render_template('faculty/students.html',
                            faculty=fac,
                            students=students,
                            sections=sections,
+                           subjects=subjects,
+                           academic_years=academic_years,
                            section_id=section_id,
+                           selected_subject_id=subject_id,
+                           selected_semester=semester,
+                           selected_ay_id=academic_year_id,
                            search=search)
 
 
@@ -116,10 +186,12 @@ def marks():
     sections = get_faculty_sections(fac)
     subjects = get_faculty_subjects(fac)
     academic_years = AcademicYear.query.all()
-    departments = Department.query.filter_by(is_active=True).all()
     examinations = []
     students_marks = []
     selected = {}
+
+    auth_subject_ids = [s.id for s in subjects]
+    auth_section_ids = [s.id for s in sections]
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -131,9 +203,16 @@ def marks():
             selected = {'subject_id': subj_id, 'section_id': sec_id, 'exam_id': exam_id}
 
             if subj_id and sec_id:
-                examinations = Examination.query.filter_by(subject_id=int(subj_id)).all()
+                s_id = int(subj_id)
+                sc_id = int(sec_id)
+                # Authorization check
+                if s_id not in auth_subject_ids or sc_id not in auth_section_ids:
+                    flash('Unauthorized subject or section selected.', 'danger')
+                    return redirect(url_for('faculty.marks'))
+
+                examinations = Examination.query.filter_by(subject_id=s_id).all()
                 section_students = Student.query.filter_by(
-                    section_id=int(sec_id), is_active=True
+                    section_id=sc_id, is_active=True
                 ).order_by(Student.roll_number).all()
 
                 if exam_id:
@@ -147,45 +226,54 @@ def marks():
             exam_id = request.form.get('exam_id')
             section_id = request.form.get('section_id')
             subject_id = request.form.get('subject_id')
+
             exam = Examination.query.get(exam_id)
+            if not exam or exam.subject_id not in auth_subject_ids:
+                flash('Unauthorized examination ID.', 'danger')
+                return redirect(url_for('faculty.marks'))
+
             saved = 0
             errors = []
 
-            if exam:
-                for key, value in request.form.items():
-                    if key.startswith('mark_'):
-                        stu_id = int(key.split('_')[1])
-                        try:
-                            marks_val = float(value)
-                            if marks_val < 0 or marks_val > exam.max_marks:
-                                errors.append(f"Student {stu_id}: Mark {marks_val} out of range (0-{exam.max_marks})")
-                                continue
+            for key, value in request.form.items():
+                if key.startswith('mark_'):
+                    stu_id = int(key.split('_')[1])
+                    stu = Student.query.get(stu_id)
+                    # Verify student belongs to faculty's authorized students
+                    if not stu or stu.department_id != fac.department_id:
+                        continue
 
-                            existing = Mark.query.filter_by(
-                                student_id=stu_id, examination_id=exam.id
-                            ).first()
-                            if existing:
-                                existing.marks_obtained = marks_val
-                                existing.recorded_by = fac.id
-                                existing.updated_at = datetime.utcnow()
-                            else:
-                                mark = Mark(
-                                    student_id=stu_id,
-                                    subject_id=exam.subject_id,
-                                    examination_id=exam.id,
-                                    marks_obtained=marks_val,
-                                    recorded_by=fac.id
-                                )
-                                db.session.add(mark)
-                            saved += 1
-                        except (ValueError, TypeError):
-                            pass
+                    try:
+                        marks_val = float(value)
+                        if marks_val < 0 or marks_val > exam.max_marks:
+                            errors.append(f"Student {stu.roll_number}: Mark {marks_val} out of range (0-{exam.max_marks})")
+                            continue
 
-                db.session.commit()
-                flash(f'{saved} marks saved successfully!', 'success')
-                if errors:
-                    for err in errors[:5]:
-                        flash(err, 'warning')
+                        existing = Mark.query.filter_by(
+                            student_id=stu_id, examination_id=exam.id
+                        ).first()
+                        if existing:
+                            existing.marks_obtained = marks_val
+                            existing.recorded_by = fac.id
+                            existing.updated_at = datetime.utcnow()
+                        else:
+                            mark = Mark(
+                                student_id=stu_id,
+                                subject_id=exam.subject_id,
+                                examination_id=exam.id,
+                                marks_obtained=marks_val,
+                                recorded_by=fac.id
+                            )
+                            db.session.add(mark)
+                        saved += 1
+                    except (ValueError, TypeError):
+                        pass
+
+            db.session.commit()
+            flash(f'{saved} marks saved successfully!', 'success')
+            if errors:
+                for err in errors[:5]:
+                    flash(err, 'warning')
 
             selected = {'subject_id': subject_id, 'section_id': section_id, 'exam_id': exam_id}
             return redirect(url_for('faculty.marks'))
@@ -200,8 +288,13 @@ def marks():
             exam_date_str = request.form.get('exam_date')
 
             if subj_id and exam_name:
+                s_id = int(subj_id)
+                if s_id not in auth_subject_ids:
+                    flash('Unauthorized subject ID.', 'danger')
+                    return redirect(url_for('faculty.marks'))
+
                 existing = Examination.query.filter_by(
-                    subject_id=int(subj_id), name=exam_name,
+                    subject_id=s_id, name=exam_name,
                     section_id=int(sec_id) if sec_id else None
                 ).first()
                 if existing:
@@ -214,7 +307,7 @@ def marks():
                         except ValueError:
                             pass
                     exam = Examination(
-                        subject_id=int(subj_id), name=exam_name, exam_type=exam_type,
+                        subject_id=s_id, name=exam_name, exam_type=exam_type,
                         max_marks=float(max_marks),
                         section_id=int(sec_id) if sec_id else None,
                         academic_year_id=int(ay_id) if ay_id else None,
@@ -228,7 +321,7 @@ def marks():
 
     if subjects:
         examinations = Examination.query.filter(
-            Examination.subject_id.in_([s.id for s in subjects])
+            Examination.subject_id.in_(auth_subject_ids)
         ).all()
 
     return render_template('faculty/marks.html',
@@ -253,6 +346,9 @@ def attendance():
     students_att = []
     selected = {}
 
+    auth_subject_ids = [s.id for s in subjects]
+    auth_section_ids = [s.id for s in sections]
+
     if request.method == 'POST':
         action = request.form.get('action')
 
@@ -263,8 +359,14 @@ def attendance():
             selected = {'subject_id': subj_id, 'section_id': sec_id, 'date': att_date}
 
             if subj_id and sec_id:
+                s_id = int(subj_id)
+                sc_id = int(sec_id)
+                if s_id not in auth_subject_ids or sc_id not in auth_section_ids:
+                    flash('Unauthorized subject or section selected.', 'danger')
+                    return redirect(url_for('faculty.attendance'))
+
                 section_students = Student.query.filter_by(
-                    section_id=int(sec_id), is_active=True
+                    section_id=sc_id, is_active=True
                 ).order_by(Student.roll_number).all()
 
                 try:
@@ -274,7 +376,7 @@ def attendance():
 
                 for stu in section_students:
                     att_record = AttendanceRecord.query.filter_by(
-                        student_id=stu.id, subject_id=int(subj_id), date=att_date_obj
+                        student_id=stu.id, subject_id=s_id, date=att_date_obj
                     ).first()
                     students_att.append({'student': stu, 'record': att_record})
 
@@ -282,6 +384,10 @@ def attendance():
             subj_id = int(request.form.get('subject_id'))
             sec_id = int(request.form.get('section_id'))
             att_date_str = request.form.get('date', date.today().isoformat())
+
+            if subj_id not in auth_subject_ids or sec_id not in auth_section_ids:
+                flash('Unauthorized subject or section selected.', 'danger')
+                return redirect(url_for('faculty.attendance'))
 
             try:
                 att_date_obj = date.fromisoformat(att_date_str)
@@ -334,7 +440,6 @@ def analytics():
 
     sections = get_faculty_sections(fac)
     subjects = get_faculty_subjects(fac)
-    subject_id = request.args.get('subject_id', '')
 
     subject_analytics = []
     for subj in subjects:
@@ -382,9 +487,7 @@ def predictions():
             if avg < 50:
                 at_risk.append({'student': stu, 'avg': round(avg, 1)})
 
-    # ML training info
     from ml_pipeline import retrain_if_needed, get_model_path
-    import pandas as pd
     dept_id = fac.department_id
 
     marks_data = []
@@ -421,6 +524,7 @@ def questions():
         return redirect(url_for('auth.login'))
 
     subjects = get_faculty_subjects(fac)
+    auth_subject_ids = [s.id for s in subjects]
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -438,6 +542,8 @@ def questions():
 
             if not q_text or not subj_id:
                 flash('Question text and subject are required.', 'danger')
+            elif int(subj_id) not in auth_subject_ids:
+                flash('Unauthorized subject selection.', 'danger')
             else:
                 q = Question(
                     subject_id=int(subj_id), question_text=q_text,
@@ -449,24 +555,24 @@ def questions():
                 )
                 db.session.add(q)
                 db.session.commit()
-                flash('Question added successfully!', 'success')
+                flash('Question added to Question Bank!', 'success')
 
         elif action == 'delete':
             q_id = request.form.get('question_id')
             q = Question.query.get(q_id)
-            if q and q.created_by == fac.id:
+            if q and (q.created_by == fac.id or q.subject_id in auth_subject_ids):
                 q.is_active = False
                 db.session.commit()
-                flash('Question removed.', 'success')
+                flash('Question removed from active bank.', 'success')
 
         return redirect(url_for('faculty.questions'))
 
     subj_filter = request.args.get('subject_id', '')
     query = Question.query.filter(
-        Question.subject_id.in_([s.id for s in subjects]),
+        Question.subject_id.in_(auth_subject_ids),
         Question.is_active == True
     )
-    if subj_filter:
+    if subj_filter and subj_filter.isdigit():
         query = query.filter_by(subject_id=int(subj_filter))
     question_list = query.order_by(Question.created_at.desc()).all()
 
@@ -487,6 +593,7 @@ def tasks():
     sections = get_faculty_sections(fac)
     subjects = get_faculty_subjects(fac)
     students = get_faculty_students(fac)
+    auth_student_ids = [s.id for s in students]
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -500,6 +607,8 @@ def tasks():
 
             if not stu_id or not title:
                 flash('Student and task title are required.', 'danger')
+            elif int(stu_id) not in auth_student_ids:
+                flash('Unauthorized student selected.', 'danger')
             else:
                 try:
                     due_date = date.fromisoformat(due_date_str) if due_date_str else None
@@ -563,7 +672,7 @@ def export_marks():
         io.BytesIO(output.getvalue().encode()),
         mimetype='text/csv',
         as_attachment=True,
-        download_name='marks_export.csv'
+        download_name=f'faculty_marks_{fac.faculty_id}.csv'
     )
 
 
@@ -574,10 +683,12 @@ def export_students():
     students = get_faculty_students(fac)
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Roll Number', 'Name', 'Email', 'Section', 'Semester'])
+    writer.writerow(['Roll Number', 'Name', 'Department', 'Email', 'Section', 'Semester'])
     for stu in students:
         writer.writerow([
-            stu.roll_number, stu.name, stu.email or '',
+            stu.roll_number, stu.name,
+            stu.department.code if stu.department else '',
+            stu.email or '',
             stu.section.name if stu.section else '',
             stu.current_semester
         ])
@@ -617,4 +728,3 @@ def export_attendance():
         as_attachment=True,
         download_name=f'faculty_attendance_{fac.faculty_id}.csv'
     )
-

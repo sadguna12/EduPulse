@@ -52,11 +52,17 @@
 
 <!-- Recommended Weekly Schedule -->
 <div class="card" style="margin-bottom:24px;">
-  <div class="card-header">
+  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
     <div>
       <div class="card-title">📅 Recommended Weekly Study Timetable</div>
-      <div class="card-subtitle">Optimized study slots balanced with lecture commitments</div>
+      <div class="card-subtitle">Optimized study slots balanced with lecture commitments & academic performance</div>
     </div>
+    <form method="POST" action="{{ url_for('student.generate_study_plan') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-secondary btn-sm" title="Recompute plan from latest marks and attendance">
+        🔄 Recalculate AI Study Plan
+      </button>
+    </form>
   </div>
 
   <div class="table-responsive">
