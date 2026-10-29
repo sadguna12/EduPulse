@@ -3,6 +3,7 @@ EduPulse ML Pipeline
 Uses Scikit-learn to predict student performance based on historical marks.
 """
 import os
+import tempfile
 import numpy as np
 import pandas as pd
 import joblib
@@ -16,7 +17,10 @@ from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.base import BaseEstimator
 
 MODEL_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "ml_models")
-os.makedirs(MODEL_DIR, exist_ok=True)
+try:
+    os.makedirs(MODEL_DIR, exist_ok=True)
+except OSError:
+    pass
 
 MIN_TRAINING_SAMPLES = 15
 
@@ -25,7 +29,12 @@ def get_model_path(department_id, subject_id=None):
     suffix = f"dept{department_id}"
     if subject_id:
         suffix += f"_subj{subject_id}"
-    return os.path.join(MODEL_DIR, f"model_{suffix}.pkl")
+    filename = f"model_{suffix}.pkl"
+    # Check if a freshly trained model exists in writable temp directory
+    tmp_path = os.path.join(tempfile.gettempdir(), "edupulse_models", filename)
+    if os.path.exists(tmp_path):
+        return tmp_path
+    return os.path.join(MODEL_DIR, filename)
 
 
 def build_features(marks_df):
@@ -164,8 +173,18 @@ def train_model(X, y, model_path):
 
     # Only save if meaningfully better than baseline
     beats_baseline = best_mae < baseline_mae
-    joblib.dump({"model": best_model, "feature_cols": ["ia_mean", "ia_max", "ia_min", "ia_std", "student_overall_avg"],
-                 "trained_at": datetime.utcnow().isoformat()}, model_path)
+    payload = {
+        "model": best_model,
+        "feature_cols": ["ia_mean", "ia_max", "ia_min", "ia_std", "student_overall_avg"],
+        "trained_at": datetime.utcnow().isoformat()
+    }
+    try:
+        joblib.dump(payload, model_path)
+    except OSError:
+        # Fallback to writable temporary directory on read-only environments (e.g. Vercel)
+        tmp_dir = os.path.join(tempfile.gettempdir(), "edupulse_models")
+        os.makedirs(tmp_dir, exist_ok=True)
+        joblib.dump(payload, os.path.join(tmp_dir, os.path.basename(model_path)))
 
     return {
         "success": True,

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_file
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, send_file, current_app
 from flask_login import login_required, current_user
 from functools import wraps
 from datetime import datetime, date
@@ -7,6 +7,7 @@ import io
 import os
 import json
 import re
+import tempfile
 import pandas as pd
 from extensions import db
 from models import (
@@ -440,6 +441,18 @@ def download_master_template():
     )
 
 
+def _get_upload_folder():
+    folder = current_app.config.get('UPLOAD_FOLDER')
+    if not folder:
+        folder = os.path.join(tempfile.gettempdir(), 'edupulse_uploads')
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except OSError:
+        folder = os.path.join(tempfile.gettempdir(), 'edupulse_uploads')
+        os.makedirs(folder, exist_ok=True)
+    return folder
+
+
 @admin_bp.route('/dataset/master-preview', methods=['POST'])
 @admin_required
 def master_preview():
@@ -455,8 +468,7 @@ def master_preview():
         flash('Please upload a valid Excel workbook file (.xlsx).', 'danger')
         return redirect(url_for('admin.dataset'))
 
-    upload_folder = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'uploads')
-    os.makedirs(upload_folder, exist_ok=True)
+    upload_folder = _get_upload_folder()
     temp_path = os.path.join(upload_folder, f'staged_master_{current_user.id}.xlsx')
     file.save(temp_path)
 
@@ -489,7 +501,7 @@ def master_preview():
 @admin_required
 def master_confirm():
     """Execute dependency-ordered transaction import for staged master workbook."""
-    upload_folder = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'uploads')
+    upload_folder = _get_upload_folder()
     temp_path = os.path.join(upload_folder, f'staged_master_{current_user.id}.xlsx')
     dup_policy = request.form.get('duplicate_policy', 'skip')
     filename = request.form.get('filename', 'EduPulse_Dataset.xlsx')
@@ -530,7 +542,7 @@ def master_confirm():
 @admin_required
 def master_cancel():
     """Discard staged master workbook."""
-    upload_folder = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'uploads')
+    upload_folder = _get_upload_folder()
     temp_path = os.path.join(upload_folder, f'staged_master_{current_user.id}.xlsx')
     if os.path.exists(temp_path):
         try:
