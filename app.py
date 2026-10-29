@@ -98,8 +98,11 @@ def create_app(config_name=None):
     return app
 
 
+# Top-level WSGI / Vercel entrypoint
+app = create_app()
+
+
 if __name__ == '__main__':
-    app = create_app()
     with app.app_context():
         db.create_all()
     app.run(debug=True, port=5000, use_reloader=False)
