@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import admin_nav %}
+{% block title %}Student Management{% endblock %}
+{% block page_title %}Student Management{% endblock %}
+{% block nav %}{{ admin_nav() }}{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary btn-sm" onclick="openModal('addStudentModal')">➕ Add Student</button>
+{% endblock %}
+
+{% block content %}
+<!-- Search & Filter -->
+<div class="card mb-4" style="margin-bottom:16px;">
+  <form method="GET" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+    <div class="form-group" style="margin:0; flex:1; min-width:200px;">
+      <label class="form-label">Search</label>
+      <input type="text" name="search" class="form-control" placeholder="Name or roll number..." value="{{ search }}">
+    </div>
+    <div class="form-group" style="margin:0; min-width:180px;">
+      <label class="form-label">Department</label>
+      <select name="dept_id" class="form-control">
+        <option value="">All Departments</option>
+        {% for d in departments %}<option value="{{ d.id }}" {{ 'selected' if dept_filter == d.id|string }}>{{ d.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">🔍 Filter</button>
+    <a href="{{ url_for('admin.students') }}" class="btn btn-secondary">✕ Clear</a>
+    <a href="{{ url_for('admin.export_students') }}" class="btn btn-success">📥 Export CSV</a>
+  </form>
+</div>
+
+<!-- Students Table -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">🎓 Students ({{ students.total }})</div>
+      <div class="card-subtitle">{{ students.pages }} page(s) of results</div>
+    </div>
+  </div>
+
+  {% if students.items %}
+  <div class="table-wrapper" style="border:none;">
+    <table>
+      <thead>
+        <tr>
+          <th>Roll Number</th><th>Name</th><th>Department</th><th>Section</th><th>Semester</th><th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in students.items %}
+        <tr>
+          <td><span class="badge badge-primary">{{ s.roll_number }}</span></td>
+          <td style="font-weight:500; color:var(--text-primary);">{{ s.name }}</td>
+          <td class="text-sm">{{ s.department.name if s.department else '—' }}</td>
+          <td class="text-sm">{{ s.section.name if s.section else '—' }}</td>
+          <td class="text-sm">{{ s.current_semester }}</td>
+          <td>
+            {% if s.is_active %}<span class="badge badge-success">Active</span>
+            {% else %}<span class="badge badge-muted">Inactive</span>{% endif %}
+          </td>
+          <td>
+            <form method="POST" style="display:inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="toggle">
+              <input type="hidden" name="student_id" value="{{ s.id }}">
+              <button class="btn {{ 'btn-danger' if s.is_active else 'btn-success' }} btn-sm">
+                {{ 'Deactivate' if s.is_active else 'Activate' }}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if students.pages > 1 %}
+  <div class="pagination">
+    {% if students.has_prev %}
+    <a href="?page={{ students.prev_num }}&search={{ search }}&dept_id={{ dept_filter }}" class="page-btn">← Prev</a>
+    {% endif %}
+    {% for p in students.iter_pages() %}
+      {% if p %}<a href="?page={{ p }}&search={{ search }}&dept_id={{ dept_filter }}" class="page-btn {{ 'active' if p == students.page }}">{{ p }}</a>
+      {% else %}<span class="page-btn">…</span>{% endif %}
+    {% endfor %}
+    {% if students.has_next %}
+    <a href="?page={{ students.next_num }}&search={{ search }}&dept_id={{ dept_filter }}" class="page-btn">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">🎓</div>
+    <div class="empty-title">No students found</div>
+    <div class="empty-text">{{ 'Try a different search or filter.' if search or dept_filter else 'Add your first student to get started.' }}</div>
+    <button class="btn btn-primary btn-sm mt-3" onclick="openModal('addStudentModal')">➕ Add Student</button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Add Student Modal -->
+<div class="modal-overlay" id="addStudentModal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title">➕ Add New Student</div>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Roll Number *</label>
+          <input type="text" name="roll_number" class="form-control" placeholder="IT24001A" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" name="name" class="form-control" placeholder="Student Name" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Department *</label>
+          <select name="department_id" class="form-control" required>
+            {% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Section</label>
+          <select name="section_id" class="form-control">
+            <option value="">— Select Section —</option>
+            {% for s in sections %}<option value="{{ s.id }}">{{ s.department.code if s.department else '' }}-{{ s.name }} (Sem {{ s.semester }})</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Academic Year</label>
+          <select name="academic_year_id" class="form-control">
+            {% for ay in academic_years %}<option value="{{ ay.id }}">{{ ay.year_label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Semester</label>
+          <select name="current_semester" class="form-control">
+            {% for i in range(1,9) %}<option value="{{ i }}">Semester {{ i }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" placeholder="student@email.com">
+      </div>
+      <div class="form-hint" style="margin-bottom:12px;">💡 Initial password will be set to the Roll Number</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('addStudentModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Student Account</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

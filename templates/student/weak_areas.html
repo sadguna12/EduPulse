@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import student_nav %}
+{% block title %}Strengths & Weak Areas{% endblock %}
+{% block page_title %}Strengths & Weak Areas Analysis{% endblock %}
+{% block nav %}{{ student_nav() }}{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="gap:24px; margin-bottom:24px;">
+  <!-- Weak Areas Section -->
+  <div class="card" style="border-top: 4px solid var(--accent-red);">
+    <div class="card-header">
+      <div>
+        <div class="card-title" style="color:var(--accent-red); display:flex; align-items:center; gap:8px;">
+          <span>⚠️</span> Areas Requiring Attention (&lt;60%)
+        </div>
+        <div class="card-subtitle">Subjects flagged for academic intervention</div>
+      </div>
+      <span class="badge badge-danger">{{ weak_areas|length }} Subjects</span>
+    </div>
+
+    {% if weak_areas %}
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      {% for w in weak_areas %}
+      <div style="background:var(--bg-elevated); border:1px solid rgba(239, 68, 68, 0.2); border-radius:var(--radius-lg); padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h4 style="font-size:1.05rem; font-weight:600; color:var(--text-primary); margin:0;">
+            {{ w.subject_name }}
+          </h4>
+          <span class="badge badge-danger" style="font-size:0.9rem;">
+            {{ w.avg_pct }}%
+          </span>
+        </div>
+
+        <div class="progress-bar-wrapper" style="margin-bottom:12px;">
+          <div class="progress-bar red" style="width:{{ w.avg_pct | round(0) | int }}%;"></div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <span style="font-size:0.825rem; color:var(--text-muted);">
+            Recommended: +4 hrs practice / week
+          </span>
+          <div style="display:flex; gap:8px;">
+            <a href="{{ url_for('student.practice') }}" class="btn btn-secondary btn-sm">
+              Practice Questions →
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:40px 20px;">
+      <div class="empty-icon" style="color:var(--accent-green);">🎉</div>
+      <div class="empty-title">No critical weaknesses identified!</div>
+      <div class="empty-text">All your recorded subject scores are currently above 60%. Keep up the solid performance!</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Strong Areas Section -->
+  <div class="card" style="border-top: 4px solid var(--accent-green);">
+    <div class="card-header">
+      <div>
+        <div class="card-title" style="color:var(--accent-green); display:flex; align-items:center; gap:8px;">
+          <span>🌟</span> Key Strengths & Masteries (≥75%)
+        </div>
+        <div class="card-subtitle">Subjects where you demonstrate strong proficiency</div>
+      </div>
+      <span class="badge badge-success">{{ strong_areas|length }} Subjects</span>
+    </div>
+
+    {% if strong_areas %}
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      {% for s in strong_areas %}
+      <div style="background:var(--bg-elevated); border:1px solid rgba(16, 185, 129, 0.2); border-radius:var(--radius-lg); padding:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h4 style="font-size:1.05rem; font-weight:600; color:var(--text-primary); margin:0;">
+            {{ s.subject_name }}
+          </h4>
+          <span class="badge badge-success" style="font-size:0.9rem;">
+            {{ s.avg_pct }}%
+          </span>
+        </div>
+
+        <div class="progress-bar-wrapper" style="margin-bottom:12px;">
+          <div class="progress-bar green" style="width:{{ s.avg_pct | round(0) | int }}%;"></div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <span style="font-size:0.825rem; color:var(--text-muted);">
+            Status: Distinction Grade Retained
+          </span>
+          <span class="text-xs" style="color:var(--accent-green); font-weight:600;">
+            Excellent Concept Grasp ✓
+          </span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:40px 20px;">
+      <div class="empty-icon">📈</div>
+      <div class="empty-title">Building towards mastery</div>
+      <div class="empty-text">Keep studying and practicing to push your subjects past the 75% distinction boundary.</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Recommended Action Protocol -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">📖 Evidence-Based Recovery & Mastery Strategy</div>
+      <div class="card-subtitle">Recommended techniques to convert weaknesses into core strengths</div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:20px;">
+    <div style="background:var(--bg-elevated); padding:20px; border-radius:var(--radius-lg); border:1px solid var(--border-color);">
+      <div style="font-size:2rem; margin-bottom:12px;">🔄</div>
+      <h4 style="font-size:1rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">Spaced Repetition</h4>
+      <p style="font-size:0.875rem; color:var(--text-secondary); line-height:1.5;">
+        Review difficult topics 24 hours, 3 days, and 7 days after class. This combats the Ebbinghaus forgetting curve significantly.
+      </p>
+    </div>
+
+    <div style="background:var(--bg-elevated); padding:20px; border-radius:var(--radius-lg); border:1px solid var(--border-color);">
+      <div style="font-size:2rem; margin-bottom:12px;">❓</div>
+      <h4 style="font-size:1rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">Active Retrieval Practice</h4>
+      <p style="font-size:0.875rem; color:var(--text-secondary); line-height:1.5;">
+        Instead of passively rereading lecture slides, test yourself using practice questions and quiz banks without looking at solutions first.
+      </p>
+    </div>
+
+    <div style="background:var(--bg-elevated); padding:20px; border-radius:var(--radius-lg); border:1px solid var(--border-color);">
+      <div style="font-size:2rem; margin-bottom:12px;">👨‍🏫</div>
+      <h4 style="font-size:1rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">Faculty Consultation</h4>
+      <p style="font-size:0.875rem; color:var(--text-secondary); line-height:1.5;">
+        Reach out to your department faculty during office hours with specific questions about topics where you lost marks in recent internals.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

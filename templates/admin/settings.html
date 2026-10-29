@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import admin_nav %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings & Access Control{% endblock %}
+{% block nav %}{{ admin_nav() }}{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="gap:20px; align-items:start;">
+  <!-- Academic Years -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📅 Academic Years</div>
+    </div>
+    {% if academic_years %}
+    <div class="table-wrapper" style="border:none;">
+      <table>
+        <thead><tr><th>Year</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for ay in academic_years %}
+          <tr>
+            <td style="font-weight:500; color:var(--text-primary);">{{ ay.year_label }}</td>
+            <td>
+              {% if ay.is_current %}<span class="badge badge-success">Current</span>
+              {% else %}<span class="badge badge-muted">Past</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">No academic years</div></div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('admin.add_academic_year') }}" style="margin-top:16px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Year Label</label>
+          <input type="text" name="year_label" class="form-control" placeholder="2025-26" required>
+        </div>
+        <div class="form-group" style="display:flex; align-items:flex-end; gap:8px;">
+          <label style="display:flex; align-items:center; gap:6px; color:var(--text-secondary); font-size:0.85rem; cursor:pointer; margin-bottom:0; padding:9px 0;">
+            <input type="checkbox" name="is_current"> Set as Current
+          </label>
+          <button type="submit" class="btn btn-primary" style="flex-shrink:0;">Add Year</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Application Info -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">ℹ️ Application Info</div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border-subtle);">
+        <span class="text-muted text-sm">Version</span>
+        <span class="badge badge-primary">EduPulse v1.0</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border-subtle);">
+        <span class="text-muted text-sm">Database</span>
+        <span class="badge badge-muted">SQLite</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border-subtle);">
+        <span class="text-muted text-sm">ML Engine</span>
+        <span class="badge badge-purple">Scikit-learn</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:10px 0;">
+        <span class="text-muted text-sm">Your Role</span>
+        <span class="badge badge-warning">Administrator</span>
+      </div>
+    </div>
+
+    <div class="card-header" style="margin-top:20px; padding-top:16px;">
+      <div class="card-title">🔒 Security Notes</div>
+    </div>
+    <ul style="list-style:none; display:flex; flex-direction:column; gap:8px;">
+      <li class="text-sm text-secondary">✅ Passwords hashed with Werkzeug PBKDF2</li>
+      <li class="text-sm text-secondary">✅ CSRF protection on all forms</li>
+      <li class="text-sm text-secondary">✅ Role-based access control enforced</li>
+      <li class="text-sm text-secondary">✅ Session cookie HttpOnly flag</li>
+      <li class="text-sm text-secondary">⚠️ Change SECRET_KEY in production</li>
+      <li class="text-sm text-secondary">⚠️ Migrate to PostgreSQL for production</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

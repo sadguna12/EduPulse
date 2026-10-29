@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import student_nav %}
+{% block title %}ML Performance Prediction{% endblock %}
+{% block page_title %}Performance Prediction & Academic Intelligence{% endblock %}
+{% block nav %}{{ student_nav() }}{% endblock %}
+
+{% block content %}
+<!-- Prediction Hero Card -->
+<div class="card" style="margin-bottom:24px; background:linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9)); border:1px solid rgba(99, 102, 241, 0.3); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);">
+  <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:24px;">
+    <div style="max-width:550px;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <span class="badge {{ 'badge-purple' if prediction and prediction.method == 'ml_model' else 'badge-primary' }}">
+          {{ '🤖 Random Forest / Gradient Boosting ML' if prediction and prediction.method == 'ml_model' else '📊 Statistical Baseline' }}
+        </span>
+        <span class="badge {{ 'badge-success' if prediction and prediction.confidence == 'high' else ('badge-warning' if prediction and prediction.confidence == 'moderate' else 'badge-danger') }}">
+          Confidence: {{ prediction.confidence | capitalize if prediction and prediction.confidence else 'Low' }}
+        </span>
+      </div>
+      <h2 style="font-size:1.6rem; font-weight:700; color:var(--text-primary); margin-bottom:10px;">
+        Predicted Semester Outcome
+      </h2>
+      <p style="color:var(--text-secondary); line-height:1.6; font-size:0.95rem; margin-bottom:16px;">
+        {{ prediction.message if prediction and prediction.message else 'Your estimated final performance based on historical internal assessments, attendance patterns, and predictive modeling.' }}
+      </p>
+      {% if prediction and prediction.ia_mean is defined and prediction.ia_mean is not none %}
+      <div style="display:flex; gap:20px; font-size:0.875rem; color:var(--text-muted);">
+        <div>Internal Assessment Mean: <strong style="color:var(--text-primary);">{{ prediction.ia_mean }}%</strong></div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Radial Prediction Score Display -->
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px 30px; background:rgba(255,255,255,0.03); border-radius:var(--radius-xl); border:1px solid var(--border-color); min-width:200px;">
+      <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:6px;">
+        Forecasted Score
+      </div>
+      <div style="font-size:3.2rem; font-weight:800; font-family:var(--font-sans); color:{{ 'var(--accent-green)' if prediction and prediction.prediction and prediction.prediction >= 70 else ('var(--accent-orange)' if prediction and prediction.prediction and prediction.prediction >= 50 else 'var(--accent-red)') }};">
+        {{ prediction.prediction if prediction and prediction.prediction is not none else 'N/A' }}<span style="font-size:1.5rem; font-weight:600;">%</span>
+      </div>
+      <div style="margin-top:6px;">
+        <span class="badge {{ 'badge-success' if prediction and prediction.prediction and prediction.prediction >= 75 else ('badge-warning' if prediction and prediction.prediction and prediction.prediction >= 50 else 'badge-danger') }}">
+          {% if prediction and prediction.prediction %}
+            {% if prediction.prediction >= 75 %}High Distinction Expected
+            {% elif prediction.prediction >= 60 %}First Class Expected
+            {% elif prediction.prediction >= 40 %}Pass Probability High
+            {% else %}⚠️ Risk of Backlog
+            {% endif %}
+          {% else %}
+            Insufficient Data
+          {% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Performance Trend Chart & Target Simulator -->
+<div class="grid-2" style="gap:20px; margin-bottom:24px;">
+  <!-- Examination Progression Trend -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">📈 Exam Progression Trend</div>
+        <div class="card-subtitle">Performance trajectory across assessments</div>
+      </div>
+    </div>
+    {% if trend_data %}
+    <div class="chart-container" style="height:280px; position:relative;">
+      <canvas id="trendChart"></canvas>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📈</div>
+      <div class="empty-title">Trend data unavailable</div>
+      <div class="empty-text">Complete more exams to render your trajectory curve.</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Interactive What-If Scenario Simulator -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">🎯 Goal & Score Simulator</div>
+        <div class="card-subtitle">Simulate how improvement shifts your final outcome</div>
+      </div>
+    </div>
+    <div style="padding:10px 0;">
+      <div style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+          <label style="font-size:0.875rem; font-weight:500; color:var(--text-secondary);">Target Internal Assessment Marks</label>
+          <span id="simTargetVal" style="font-weight:700; color:var(--accent-blue);">75%</span>
+        </div>
+        <input type="range" id="simTargetRange" min="30" max="100" value="75" style="width:100%; accent-color:var(--accent-blue);" oninput="updateSimulator(this.value)">
+      </div>
+
+      <div style="background:var(--bg-elevated); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:16px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:0.875rem; color:var(--text-secondary);">Simulated Final Result:</span>
+          <span id="simResult" style="font-size:1.4rem; font-weight:700; color:var(--accent-green);">76.5%</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:0.875rem; color:var(--text-secondary);">Projected Grade:</span>
+          <span id="simGrade" class="badge badge-success">Distinction (A)</span>
+        </div>
+      </div>
+
+      <p style="font-size:0.825rem; color:var(--text-muted); margin:0;">
+        💡 <em>Every 5% boost in upcoming internal tests positively correlates with an estimated 4-6% increase in final semester results based on historical cohort statistics.</em>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Recommendations & Action Plan -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">💡 Personalized AI Recommendations</div>
+      <div class="card-subtitle">Algorithmic suggestions tailored to your learning profile</div>
+    </div>
+  </div>
+
+  {% if recommendations %}
+  <div style="display:flex; flex-direction:column; gap:12px;">
+    {% for rec in recommendations %}
+    <div style="display:flex; align-items:flex-start; gap:14px; padding:16px; border-radius:var(--radius-md); background:var(--bg-elevated); border-left:4px solid {{ 'var(--accent-red)' if rec.type == 'critical' else ('var(--accent-orange)' if rec.type == 'warning' else ('var(--accent-green)' if rec.type == 'strength' else 'var(--accent-blue)')) }};">
+      <div style="font-size:1.3rem;">
+        {% if rec.type == 'critical' %}🚨{% elif rec.type == 'warning' %}⚠️{% elif rec.type == 'strength' %}🌟{% else %}💡{% endif %}
+      </div>
+      <div style="flex:1;">
+        {% if rec.subject %}
+        <div style="font-weight:600; color:var(--text-primary); margin-bottom:4px; font-size:0.95rem;">
+          {{ rec.subject }}
+        </div>
+        {% endif %}
+        <div style="color:var(--text-secondary); font-size:0.9rem; line-height:1.5;">
+          {{ rec.message }}
+        </div>
+      </div>
+      <div>
+        <span class="badge {{ 'badge-danger' if rec.type == 'critical' else ('badge-warning' if rec.type == 'warning' else ('badge-success' if rec.type == 'strength' else 'badge-primary')) }}">
+          {{ rec.type | capitalize }}
+        </span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">💡</div>
+    <div class="empty-title">No recommendations yet</div>
+    <div class="empty-text">Recommendations will populate automatically as marks and attendance are recorded.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+{% if trend_data %}
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+new Chart(trendCtx, {
+  type: 'line',
+  data: {
+    labels: {{ trend_data | map(attribute='exam_name') | list | tojson }},
+    datasets: [{
+      label: 'Exam Average %',
+      data: {{ trend_data | map(attribute='pct') | list | tojson }},
+      borderColor: 'rgba(99, 102, 241, 1)',
+      backgroundColor: 'rgba(99, 102, 241, 0.1)',
+      borderWidth: 3,
+      fill: true,
+      tension: 0.35,
+      pointBackgroundColor: '#818cf8',
+      pointRadius: 5
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false }
+    },
+    scales: {
+      y: {
+        min: 0,
+        max: 100,
+        grid: { color: 'rgba(148, 163, 184, 0.1)' },
+        ticks: { color: '#94a3b8' }
+      },
+      x: {
+        grid: { color: 'rgba(148, 163, 184, 0.05)' },
+        ticks: { color: '#94a3b8' }
+      }
+    }
+  }
+});
+{% endif %}
+
+function updateSimulator(val) {
+  document.getElementById('simTargetVal').innerText = val + '%';
+  const baseline = {{ (prediction.prediction if prediction and prediction.prediction is not none else 65) | tojson }};
+  const diff = (parseFloat(val) - 60) * 0.45;
+  const simulated = Math.min(100, Math.max(20, Math.round((baseline + diff) * 10) / 10));
+  
+  const simResultEl = document.getElementById('simResult');
+  const simGradeEl = document.getElementById('simGrade');
+  simResultEl.innerText = simulated + '%';
+
+  if (simulated >= 75) {
+    simGradeEl.className = 'badge badge-success';
+    simGradeEl.innerText = 'Distinction (A)';
+    simResultEl.style.color = 'var(--accent-green)';
+  } else if (simulated >= 60) {
+    simGradeEl.className = 'badge badge-primary';
+    simGradeEl.innerText = 'First Class (B)';
+    simResultEl.style.color = 'var(--accent-blue)';
+  } else if (simulated >= 40) {
+    simGradeEl.className = 'badge badge-warning';
+    simGradeEl.innerText = 'Pass Class (C/D)';
+    simResultEl.style.color = 'var(--accent-orange)';
+  } else {
+    simGradeEl.className = 'badge badge-danger';
+    simGradeEl.innerText = 'Backlog Risk (F)';
+    simResultEl.style.color = 'var(--accent-red)';
+  }
+}
+</script>
+{% endblock %}

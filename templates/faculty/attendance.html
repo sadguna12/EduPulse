@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import faculty_nav %}
+{% block title %}Attendance{% endblock %}
+{% block page_title %}Attendance Management{% endblock %}
+{% block nav %}{{ faculty_nav() }}{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="gap:20px; align-items:start;">
+  <!-- Load Form -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📅 Load Attendance</div>
+    </div>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="load">
+      <div class="form-group">
+        <label class="form-label">Subject *</label>
+        <select name="subject_id" class="form-control" required>
+          <option value="">— Select Subject —</option>
+          {% for s in subjects %}<option value="{{ s.id }}" {{ 'selected' if selected.get('subject_id') == s.id|string }}>{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Section *</label>
+        <select name="section_id" class="form-control" required>
+          <option value="">— Select Section —</option>
+          {% for s in sections %}<option value="{{ s.id }}" {{ 'selected' if selected.get('section_id') == s.id|string }}>{{ s.department.code if s.department else '' }}-{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date *</label>
+        <input type="date" name="date" class="form-control" value="{{ selected.get('date', today) }}" required>
+      </div>
+      <button type="submit" class="btn btn-primary w-full" style="width:100%; justify-content:center;">📋 Load Students</button>
+    </form>
+  </div>
+
+  <!-- Info Card -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">ℹ️ Attendance Info</div></div>
+    <ul style="list-style:none; display:flex; flex-direction:column; gap:10px;">
+      <li style="display:flex; align-items:center; gap:8px;">
+        <span style="width:12px; height:12px; border-radius:50%; background:var(--accent-green); display:inline-block;"></span>
+        <span class="text-sm">Present — Student attended class</span>
+      </li>
+      <li style="display:flex; align-items:center; gap:8px;">
+        <span style="width:12px; height:12px; border-radius:50%; background:var(--accent-red); display:inline-block;"></span>
+        <span class="text-sm">Absent — Student did not attend</span>
+      </li>
+      <li style="display:flex; align-items:center; gap:8px;">
+        <span style="width:12px; height:12px; border-radius:50%; background:var(--accent-orange); display:inline-block;"></span>
+        <span class="text-sm">Late — Student arrived late</span>
+      </li>
+    </ul>
+    <div class="rec-card info" style="margin-top:16px;">
+      Minimum attendance required: <strong>75%</strong>. Students below this threshold will receive alerts.
+    </div>
+  </div>
+</div>
+
+<!-- Attendance Entry Table -->
+{% if students_att %}
+<div class="card" style="margin-top:20px;">
+  <div class="card-header">
+    <div>
+      <div class="card-title">📅 Mark Attendance</div>
+      <div class="card-subtitle">{{ selected.get('date', '') }} • {{ students_att|length }} students</div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button type="button" class="btn btn-success btn-sm" onclick="markAll('present')">✅ All Present</button>
+      <button type="button" class="btn btn-danger btn-sm" onclick="markAll('absent')">❌ All Absent</button>
+    </div>
+  </div>
+
+  <form method="POST" id="attForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="save_attendance">
+    <input type="hidden" name="subject_id" value="{{ selected.get('subject_id', '') }}">
+    <input type="hidden" name="section_id" value="{{ selected.get('section_id', '') }}">
+    <input type="hidden" name="date" value="{{ selected.get('date', today) }}">
+
+    <div class="table-wrapper" style="border:none;">
+      <table>
+        <thead>
+          <tr><th>Roll No.</th><th>Name</th><th>Previous</th><th>Status Today</th></tr>
+        </thead>
+        <tbody>
+          {% for sa in students_att %}
+          <tr>
+            <td><span class="badge badge-primary">{{ sa.student.roll_number }}</span></td>
+            <td style="font-weight:500; color:var(--text-primary);">{{ sa.student.name }}</td>
+            <td>
+              {% if sa.record %}
+              <span class="badge {{ 'badge-success' if sa.record.status == 'present' else ('badge-warning' if sa.record.status == 'late' else 'badge-danger') }}">
+                {{ sa.record.status }}
+              </span>
+              {% else %}<span class="text-muted text-sm">—</span>{% endif %}
+            </td>
+            <td>
+              <div style="display:flex; gap:8px;" class="att-group" data-student="{{ sa.student.id }}">
+                {% for status, label, color in [('present', '✅ Present', 'success'), ('absent', '❌ Absent', 'danger'), ('late', '⏰ Late', 'warning')] %}
+                <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:0.8rem; color:var(--text-secondary);">
+                  <input type="radio" name="status_{{ sa.student.id }}" value="{{ status }}"
+                         {{ 'checked' if (sa.record and sa.record.status == status) or (not sa.record and status == 'present') else '' }}
+                         style="accent-color:var(--brand-500);">
+                  {{ label }}
+                </label>
+                {% endfor %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="padding:16px 0;">
+      <button type="submit" class="btn btn-primary">💾 Save Attendance</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function markAll(status) {
+  document.querySelectorAll(`input[type="radio"][value="${status}"]`).forEach(r => r.checked = true);
+}
+</script>
+{% endblock %}

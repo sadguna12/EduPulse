@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import student_nav %}
+{% block title %}My Academic Reports{% endblock %}
+{% block page_title %}Reports & Official Academic Records{% endblock %}
+{% block nav %}{{ student_nav() }}{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <div>
+      <div class="card-title">🎓 Student Academic Dossier</div>
+      <div class="card-subtitle">Official records for {{ student.name }} ({{ student.roll_number }})</div>
+    </div>
+    <button onclick="window.print()" class="btn btn-secondary btn-sm">🖨️ Print Dossier</button>
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:20px; padding:10px 0;">
+    <div>
+      <div class="text-xs text-muted">Roll Number</div>
+      <div style="font-weight:700; font-size:1.1rem; color:var(--text-primary); font-family:monospace;">{{ student.roll_number }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-muted">Full Name</div>
+      <div style="font-weight:600; color:var(--text-primary);">{{ student.name }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-muted">Department</div>
+      <div style="font-weight:600; color:var(--text-primary);">{{ student.department.name if student.department else 'N/A' }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-muted">Section & Semester</div>
+      <div style="font-weight:600; color:var(--text-primary);">Section {{ student.section.name if student.section else 'A' }} • Sem {{ student.current_semester }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Download Cards -->
+<div class="grid-2" style="gap:24px;">
+  <!-- Marks Report -->
+  <div class="card">
+    <div style="display:flex; gap:16px; align-items:flex-start;">
+      <div style="font-size:2.5rem; background:rgba(59, 130, 246, 0.1); padding:16px; border-radius:var(--radius-lg);">📊</div>
+      <div style="flex:1;">
+        <h3 style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0 0 6px 0;">
+          Marks & Assessment Transcript
+        </h3>
+        <p style="font-size:0.875rem; color:var(--text-secondary); line-height:1.5; margin:0 0 16px 0;">
+          Comprehensive breakdown of all internal tests, lab practicals, and semester exam marks in CSV format.
+        </p>
+        <a href="{{ url_for('student.download_marks') }}" class="btn btn-primary">
+          📥 Download Marks CSV
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Attendance Report -->
+  <div class="card">
+    <div style="display:flex; gap:16px; align-items:flex-start;">
+      <div style="font-size:2.5rem; background:rgba(16, 185, 129, 0.1); padding:16px; border-radius:var(--radius-lg);">📅</div>
+      <div style="flex:1;">
+        <h3 style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:0 0 6px 0;">
+          Attendance Audit Sheet
+        </h3>
+        <p style="font-size:0.875rem; color:var(--text-secondary); line-height:1.5; margin:0 0 16px 0;">
+          Complete attendance register logs, recording presence and absence dates across all enrolled courses.
+        </p>
+        <a href="{{ url_for('student.download_attendance') }}" class="btn btn-primary">
+          📥 Download Attendance CSV
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

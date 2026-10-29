@@ -1,0 +1,457 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import admin_nav %}
+{% block title %}Dataset Management{% endblock %}
+{% block page_title %}Academic Dataset Management & Import Engine{% endblock %}
+{% block nav %}{{ admin_nav() }}{% endblock %}
+
+{% block content %}
+<!-- Category Selection Tabs -->
+<div class="card" style="margin-bottom:20px; padding:12px;">
+  <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;" id="categoryTabs">
+    <button type="button" class="btn btn-primary btn-sm category-tab" onclick="switchCategory('students')" id="tab-students">
+      🎓 Students
+    </button>
+    <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('faculty')" id="tab-faculty">
+      👨‍🏫 Faculty
+    </button>
+    <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('marks')" id="tab-marks">
+      📊 Subject Marks
+    </button>
+    <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('attendance')" id="tab-attendance">
+      📅 Attendance
+    </button>
+    <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('subjects')" id="tab-subjects">
+      📚 Subjects
+    </button>
+    <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('examinations')" id="tab-examinations">
+      📝 Examinations
+    </button>
+    <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('departments_sections')" id="tab-departments_sections">
+      🏛️ Departments & Sections
+    </button>
+  </div>
+</div>
+
+<!-- Main Upload & Configuration Grid -->
+<div class="grid-2" style="gap:24px; align-items:start; margin-bottom:24px;">
+
+  <!-- Upload & Configuration Form -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title" id="catTitle">🎓 Student Dataset Import</div>
+        <div class="card-subtitle" id="catSubtitle">Upload student enrollment records in CSV or Excel format</div>
+      </div>
+      <a href="{{ url_for('admin.download_template', category='students') }}" class="btn btn-secondary btn-sm" id="sampleTemplateBtn">
+        📥 Sample CSV
+      </a>
+    </div>
+
+    <!-- Requirements advisory card -->
+    <div id="colRequirements" style="background:var(--bg-elevated); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:12px 16px; margin-bottom:18px; font-size:0.85rem; line-height:1.5;">
+      <strong style="color:var(--text-primary);">Required Columns:</strong> <code>roll_number</code>, <code>name</code><br>
+      <strong style="color:var(--text-secondary);">Optional / Fallback:</strong> <code>email</code>, <code>department_code</code>, <code>section</code>, <code>semester</code>, <code>gender</code>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" id="datasetForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="category" id="selectedCategory" value="{{ preview_category or 'students' }}">
+
+      <!-- Department & Scope Selection -->
+      <div class="form-row" style="margin-bottom:14px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Target Department</label>
+          <select name="department_id" class="form-control" id="deptSelect">
+            <option value="">— Auto-Detect from File —</option>
+            {% for d in departments %}
+            <option value="{{ d.id }}">{{ d.name }} ({{ d.code }})</option>
+            {% endfor %}
+          </select>
+          <div class="form-hint">Used if department is missing from individual file rows</div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Academic Year</label>
+          <select name="academic_year_id" class="form-control">
+            <option value="">— Current Active Year —</option>
+            {% for ay in academic_years %}
+            <option value="{{ ay.id }}" {{ 'selected' if ay.is_current else '' }}>{{ ay.year_label }}{{ ' (Current)' if ay.is_current else '' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Duplicate Detection & Update Strategy -->
+      <div class="form-group" style="margin-bottom:18px;">
+        <label class="form-label">Duplicate Handling Strategy</label>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; background:var(--bg-elevated); padding:10px 14px; border-radius:var(--radius-md); border:1px solid var(--border-color);">
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem; color:var(--text-secondary);">
+            <input type="radio" name="duplicate_policy" value="skip" checked style="accent-color:var(--accent-blue);">
+            ⏩ Skip Existing (Safe)
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem; color:var(--text-secondary);">
+            <input type="radio" name="duplicate_policy" value="update" style="accent-color:var(--accent-blue);">
+            🔄 Update Permitted Fields
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem; color:var(--text-secondary);">
+            <input type="radio" name="duplicate_policy" value="error" style="accent-color:var(--accent-red);">
+            ⚠️ Flag as Duplicate Error
+          </label>
+        </div>
+      </div>
+
+      <!-- File Chooser -->
+      <div class="form-group" style="margin-bottom:20px;">
+        <label class="form-label">Choose CSV or Excel File *</label>
+        <input type="file" name="file" class="form-control" accept=".csv, .xlsx, .xls" required id="datasetFile">
+        <div class="form-hint">Supports .csv (UTF-8, Latin1) and Excel (.xlsx, .xls) files up to 16MB</div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <button type="submit" name="action" value="preview" class="btn btn-secondary" style="flex:1; justify-content:center;">
+          👁️ Preview & Validate
+        </button>
+        <button type="submit" name="action" value="import" class="btn btn-primary" style="flex:1; justify-content:center;">
+          📥 Import & Save Records
+        </button>
+      </div>
+    </form>
+
+    <!-- Import Summary Banner -->
+    {% if import_summary %}
+    <div style="margin-top:20px; padding:16px; border-radius:var(--radius-lg); background:var(--bg-elevated); border:1px solid {{ 'var(--accent-green)' if import_summary.status == 'completed' else ('var(--accent-orange)' if import_summary.status == 'partial' else 'var(--accent-red)') }}; border-left:5px solid {{ 'var(--accent-green)' if import_summary.status == 'completed' else ('var(--accent-orange)' if import_summary.status == 'partial' else 'var(--accent-red)') }};">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <strong style="font-size:1rem; color:var(--text-primary);">
+          Import Summary ({{ import_summary.status | capitalize }})
+        </strong>
+        <span class="badge {{ 'badge-success' if import_summary.status == 'completed' else ('badge-warning' if import_summary.status == 'partial' else 'badge-danger') }}">
+          {{ import_summary.status | upper }}
+        </span>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; font-size:0.875rem;">
+        <div>✅ Saved: <strong style="color:var(--accent-green);">{{ import_summary.imported }}</strong></div>
+        <div>⏩ Skipped: <strong style="color:var(--accent-orange);">{{ import_summary.skipped }}</strong></div>
+        <div>❌ Rejected: <strong style="color:var(--accent-red);">{{ import_summary.failed }}</strong></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Row-level Error Reports -->
+    {% if errors %}
+    <div style="margin-top:18px;">
+      <div style="font-size:0.85rem; font-weight:700; color:var(--accent-red); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+        <span>⚠️</span> Validation Issues Detected ({{ errors|length }}):
+      </div>
+      <div style="max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding-right:4px;">
+        {% for err in errors[:25] %}
+        <div style="padding:8px 12px; background:rgba(239, 68, 68, 0.1); border-left:3px solid var(--accent-red); border-radius:var(--radius-sm); font-size:0.8rem; color:var(--text-secondary);">
+          {{ err }}
+        </div>
+        {% endfor %}
+        {% if errors|length > 25 %}
+        <div class="text-xs text-muted" style="text-align:center; padding-top:4px;">
+          ... and {{ errors|length - 25 }} additional issues. Check history error logs for full details.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Templates & Academic Export Center -->
+  <div style="display:flex; flex-direction:column; gap:24px;">
+
+    <!-- Sample Templates Download Card -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">📋 Download Standard Templates</div>
+          <div class="card-subtitle">Official schemas with pre-filled sample rows</div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px;">
+        <a href="{{ url_for('admin.download_template', category='students') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
+          🎓 Students Template
+        </a>
+        <a href="{{ url_for('admin.download_template', category='faculty') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
+          👨‍🏫 Faculty Template
+        </a>
+        <a href="{{ url_for('admin.download_template', category='marks_long') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
+          📊 Marks (Long Format)
+        </a>
+        <a href="{{ url_for('admin.download_template', category='marks_wide') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
+          📈 Marks (Wide Format)
+        </a>
+        <a href="{{ url_for('admin.download_template', category='attendance_sessions') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
+          📅 Attendance (Sessions)
+        </a>
+        <a href="{{ url_for('admin.download_template', category='attendance_aggregate') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
+          📊 Attendance (Aggregate)
+        </a>
+        <a href="{{ url_for('admin.download_template', category='subjects') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
+          📚 Subjects Template
+        </a>
+        <a href="{{ url_for('admin.download_template', category='examinations') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
+          📝 Examinations Template
+        </a>
+        <a href="{{ url_for('admin.download_template', category='departments_sections') }}" class="btn btn-secondary btn-sm" style="justify-content:flex-start;">
+          🏛️ Dept & Sections Template
+        </a>
+      </div>
+    </div>
+
+    <!-- Export Center Card -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">📤 Academic Data Export Hub</div>
+          <div class="card-subtitle">Export institution-wide data in CSV or Excel</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-color);">
+          <div>
+            <div style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">Student Roster & Enrollments</div>
+            <div class="text-xs text-muted">Complete records by department, section, semester</div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <a href="{{ url_for('admin.export_students', format='csv') }}" class="btn btn-secondary btn-sm">CSV</a>
+            <a href="{{ url_for('admin.export_students', format='excel') }}" class="btn btn-primary btn-sm">Excel</a>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-color);">
+          <div>
+            <div style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">Faculty & Course Assignments</div>
+            <div class="text-xs text-muted">Faculty profiles and assigned subjects</div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <a href="{{ url_for('admin.export_faculty', format='csv') }}" class="btn btn-secondary btn-sm">CSV</a>
+            <a href="{{ url_for('admin.export_faculty', format='excel') }}" class="btn btn-primary btn-sm">Excel</a>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-color);">
+          <div>
+            <div style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">Complete Marks Ledger</div>
+            <div class="text-xs text-muted">Subject-wise marks and assessment percentages</div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <a href="{{ url_for('admin.export_marks', format='csv') }}" class="btn btn-secondary btn-sm">CSV</a>
+            <a href="{{ url_for('admin.export_marks', format='excel') }}" class="btn btn-primary btn-sm">Excel</a>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-color);">
+          <div>
+            <div style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">Attendance Master Ledger</div>
+            <div class="text-xs text-muted">Session and subject attendance records</div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <a href="{{ url_for('admin.export_attendance', format='csv') }}" class="btn btn-secondary btn-sm">CSV</a>
+            <a href="{{ url_for('admin.export_attendance', format='excel') }}" class="btn btn-primary btn-sm">Excel</a>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-color);">
+          <div>
+            <div style="font-weight:600; font-size:0.9rem; color:var(--text-primary);">Institution Analytics Summary</div>
+            <div class="text-xs text-muted">Department averages, attendance %, cohorts</div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <a href="{{ url_for('admin.export_analytics', format='csv') }}" class="btn btn-secondary btn-sm">CSV</a>
+            <a href="{{ url_for('admin.export_analytics', format='excel') }}" class="btn btn-primary btn-sm">Excel</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Table Section (if previewing) -->
+{% if preview_data %}
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <div>
+      <div class="card-title">👁️ File Preview & Column Mapping (First {{ preview_data|length }} Rows)</div>
+      <div class="card-subtitle">Category: <strong style="color:var(--accent-blue);">{{ preview_category | replace('_', ' ') | capitalize }}</strong> &bull; Detected Columns: {{ preview_columns | join(', ') }}</div>
+    </div>
+    <button type="button" onclick="document.getElementById('datasetForm').querySelector('button[value=import]').click()" class="btn btn-primary btn-sm">
+      Confirm & Import File ✓
+    </button>
+  </div>
+
+  <div class="table-responsive" style="max-height:360px; overflow-y:auto;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          {% for col in preview_columns %}
+          <th>{{ col }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in preview_data %}
+        <tr>
+          <td style="font-family:monospace; color:var(--text-muted); font-size:0.75rem;">{{ loop.index }}</td>
+          {% for col in preview_columns %}
+          <td class="text-sm" style="white-space:nowrap;">{{ row.get(col, '') }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Import History & Audit Log -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">📜 Recent Import Audit Log</div>
+      <div class="card-subtitle">Transaction history of academic dataset uploads</div>
+    </div>
+  </div>
+
+  {% if import_histories %}
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>File Name</th>
+          <th>Department</th>
+          <th>Import Date</th>
+          <th>Imported</th>
+          <th>Skipped</th>
+          <th>Failed</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in import_histories %}
+        <tr>
+          <td style="font-weight:600; color:var(--text-primary);">
+            {{ h.category | replace('_', ' ') | capitalize }}
+          </td>
+          <td style="font-family:monospace; font-size:0.85rem;" title="{{ h.filename }}">
+            {{ h.filename }}
+          </td>
+          <td>
+            {{ h.department.code if h.department else 'Institution-wide' }}
+          </td>
+          <td class="text-sm text-muted">
+            {{ h.imported_at.strftime('%d %b %Y, %H:%M') if h.imported_at else '—' }}
+          </td>
+          <td style="color:var(--accent-green); font-weight:600;">{{ h.records_imported }}</td>
+          <td style="color:var(--accent-orange);">{{ h.records_skipped }}</td>
+          <td style="color:{{ 'var(--accent-red)' if h.records_failed > 0 else 'var(--text-muted)' }}; font-weight:{{ '700' if h.records_failed > 0 else '400' }};">
+            {{ h.records_failed }}
+          </td>
+          <td>
+            <span class="badge {{ 'badge-success' if h.status == 'completed' else ('badge-warning' if h.status == 'partial' else 'badge-danger') }}">
+              {{ h.status | capitalize }}
+            </span>
+          </td>
+          <td>
+            {% if h.records_failed > 0 or h.records_skipped > 0 %}
+            <a href="{{ url_for('admin.download_import_errors', history_id=h.id) }}" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:3px 8px;">
+              ⚠️ Error Log
+            </a>
+            {% else %}
+            <span class="text-xs text-muted">✓ Clean</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📂</div>
+    <div class="empty-title">No import history recorded yet</div>
+    <div class="empty-text">Import records above to populate the institutional audit ledger.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const categoryConfig = {
+  students: {
+    title: '🎓 Student Dataset Import',
+    subtitle: 'Upload student enrollment records in CSV or Excel format',
+    template: 'students',
+    reqs: '<strong style="color:var(--text-primary);">Required Columns:</strong> <code>roll_number</code>, <code>name</code><br><strong style="color:var(--text-secondary);">Optional:</strong> <code>email</code>, <code>department_code</code>, <code>section</code>, <code>semester</code>, <code>gender</code>, <code>phone</code>'
+  },
+  faculty: {
+    title: '👨‍🏫 Faculty Dataset Import',
+    subtitle: 'Upload faculty details and course teaching assignments',
+    template: 'faculty',
+    reqs: '<strong style="color:var(--text-primary);">Required Columns:</strong> <code>faculty_id</code>, <code>name</code><br><strong style="color:var(--text-secondary);">Optional:</strong> <code>email</code>, <code>department_code</code>, <code>designation</code>, <code>assigned_subjects</code> (comma separated codes), <code>assigned_sections</code>'
+  },
+  marks: {
+    title: '📊 Subject-Wise Student Marks Import',
+    subtitle: 'Upload assessment scores in Long Format or Wide Format (subjects as columns)',
+    template: 'marks_long',
+    reqs: '<strong style="color:var(--text-primary);">Long Format:</strong> <code>roll_number</code>, <code>subject_code</code>, <code>exam_name</code>, <code>marks_obtained</code>, <code>max_marks</code><br><strong style="color:var(--text-primary);">Wide Format:</strong> <code>roll_number</code>, <code>exam_name</code>, followed by Subject Code columns (e.g., <code>IT101</code>, <code>IT102</code>)'
+  },
+  attendance: {
+    title: '📅 Attendance Dataset Import',
+    subtitle: 'Upload daily session attendance logs or aggregate semester percentage counts',
+    template: 'attendance_sessions',
+    reqs: '<strong style="color:var(--text-primary);">Session Format:</strong> <code>roll_number</code>, <code>subject_code</code>, <code>date</code> (YYYY-MM-DD), <code>status</code> (present/absent)<br><strong style="color:var(--text-primary);">Aggregate Format:</strong> <code>roll_number</code>, <code>subject_code</code>, <code>total_classes</code>, <code>attended_classes</code>, <code>attendance_percentage</code>'
+  },
+  subjects: {
+    title: '📚 Subjects & Curriculum Import',
+    subtitle: 'Upload course catalogs, semester assignments, and credit structures',
+    template: 'subjects',
+    reqs: '<strong style="color:var(--text-primary);">Required Columns:</strong> <code>subject_code</code>, <code>subject_name</code><br><strong style="color:var(--text-secondary);">Optional:</strong> <code>department_code</code>, <code>semester</code>, <code>credits</code>, <code>subject_type</code> (theory/lab)'
+  },
+  examinations: {
+    title: '📝 Examinations Import',
+    subtitle: 'Upload test specifications, internal assessments, and semester exam criteria',
+    template: 'examinations',
+    reqs: '<strong style="color:var(--text-primary);">Required Columns:</strong> <code>subject_code</code>, <code>name</code>, <code>max_marks</code><br><strong style="color:var(--text-secondary);">Optional:</strong> <code>exam_type</code> (internal/semester), <code>semester</code>'
+  },
+  departments_sections: {
+    title: '🏛️ Departments & Sections Import',
+    subtitle: 'Upload academic departments and student section batches',
+    template: 'departments_sections',
+    reqs: '<strong style="color:var(--text-primary);">Required Columns:</strong> <code>department_code</code>, <code>department_name</code><br><strong style="color:var(--text-secondary);">Optional:</strong> <code>section_name</code>, <code>semester</code>, <code>description</code>'
+  }
+};
+
+function switchCategory(cat) {
+  const config = categoryConfig[cat];
+  if (!config) return;
+
+  document.getElementById('selectedCategory').value = cat;
+  document.getElementById('catTitle').innerHTML = config.title;
+  document.getElementById('catSubtitle').innerText = config.subtitle;
+  document.getElementById('colRequirements').innerHTML = config.reqs;
+  document.getElementById('sampleTemplateBtn').setAttribute('href', '/admin/dataset/template/' + config.template);
+
+  // Update tab button active states
+  document.querySelectorAll('.category-tab').forEach(btn => {
+    btn.className = 'btn btn-secondary btn-sm category-tab';
+  });
+  const activeTab = document.getElementById('tab-' + cat);
+  if (activeTab) activeTab.className = 'btn btn-primary btn-sm category-tab';
+}
+
+// Initialize active tab from preview category if present
+document.addEventListener('DOMContentLoaded', () => {
+  const initialCat = '{{ preview_category or "students" }}';
+  switchCategory(initialCat);
+});
+</script>
+{% endblock %}

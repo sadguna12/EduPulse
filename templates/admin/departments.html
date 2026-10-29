@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import admin_nav %}
+{% block title %}Departments & Sections{% endblock %}
+{% block page_title %}Departments & Sections{% endblock %}
+{% block nav %}{{ admin_nav() }}{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary btn-sm" onclick="openModal('addDeptModal')">➕ Add Department</button>
+{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="gap:20px; align-items:start;">
+
+  <!-- Departments -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">🏛️ Departments ({{ departments|length }})</div>
+    </div>
+    {% if departments %}
+    <div class="table-wrapper" style="border:none;">
+      <table>
+        <thead><tr><th>Code</th><th>Name</th><th>Students</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for d in departments %}
+          <tr>
+            <td><span class="badge badge-primary">{{ d.code }}</span></td>
+            <td style="font-weight:500; color:var(--text-primary);">{{ d.name }}</td>
+            <td>{{ d.students|selectattr('is_active')|list|length }}</td>
+            <td>
+              {% if d.is_active %}<span class="badge badge-success">Active</span>
+              {% else %}<span class="badge badge-muted">Inactive</span>{% endif %}
+            </td>
+            <td>
+              <form method="POST" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="toggle">
+                <input type="hidden" name="dept_id" value="{{ d.id }}">
+                <button class="btn btn-warning btn-sm">{{ 'Deactivate' if d.is_active else 'Activate' }}</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">🏛️</div><div class="empty-title">No departments yet</div></div>
+    {% endif %}
+  </div>
+
+  <!-- Sections -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📋 Sections</div>
+      <button class="btn btn-secondary btn-sm" onclick="openModal('addSecModal')">➕ Add Section</button>
+    </div>
+    {% set all_sections = sections %}
+    {% if all_sections %}
+    <div class="table-wrapper" style="border:none;">
+      <table>
+        <thead><tr><th>Section</th><th>Department</th><th>Semester</th><th>Students</th></tr></thead>
+        <tbody>
+          {% for s in all_sections %}
+          <tr>
+            <td><span class="badge badge-purple">{{ s.name }}</span></td>
+            <td class="text-sm">{{ s.department.code if s.department else '—' }}</td>
+            <td class="text-sm">Sem {{ s.semester }}</td>
+            <td>{{ s.students|selectattr('is_active')|list|length }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No sections yet</div></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Add Department Modal -->
+<div class="modal-overlay" id="addDeptModal">
+  <div class="modal">
+    <div class="modal-title">➕ Add New Department</div>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add">
+      <div class="form-group">
+        <label class="form-label">Department Name *</label>
+        <input type="text" name="name" class="form-control" placeholder="e.g. Information Technology" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Code *</label>
+          <input type="text" name="code" class="form-control" placeholder="IT" maxlength="10" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <input type="text" name="description" class="form-control" placeholder="Optional">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('addDeptModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Department</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Section Modal -->
+<div class="modal-overlay" id="addSecModal">
+  <div class="modal">
+    <div class="modal-title">➕ Add New Section</div>
+    <form method="POST" action="{{ url_for('admin.add_section') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Department *</label>
+          <select name="department_id" class="form-control" required>
+            {% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Section Name *</label>
+          <input type="text" name="name" class="form-control" placeholder="A" maxlength="5" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Semester *</label>
+          <select name="semester" class="form-control" required>
+            {% for i in range(1,9) %}<option value="{{ i }}">Semester {{ i }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Academic Year</label>
+          <select name="academic_year_id" class="form-control">
+            {% for ay in academic_years %}<option value="{{ ay.id }}">{{ ay.year_label }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('addSecModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Section</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

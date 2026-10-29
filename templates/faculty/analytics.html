@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import faculty_nav %}
+{% block title %}Performance Analytics{% endblock %}
+{% block page_title %}Performance Analytics{% endblock %}
+{% block nav %}{{ faculty_nav() }}{% endblock %}
+
+{% block content %}
+{% if subject_analytics %}
+<!-- Summary Grid -->
+<div class="stat-grid">
+  {% for sa in subject_analytics %}
+  <div class="stat-card {{ 'green' if sa.avg >= 75 else ('orange' if sa.avg >= 50 else 'pink') }}">
+    <div class="stat-icon {{ 'green' if sa.avg >= 75 else ('orange' if sa.avg >= 50 else 'pink') }}">📚</div>
+    <div class="stat-value" style="font-size:1.5rem;">{{ sa.avg }}%</div>
+    <div class="stat-label" style="text-transform:none;">{{ sa.subject.name }}</div>
+    <div class="stat-change {{ 'positive' if sa.avg >= 60 else 'negative' }}">
+      {{ sa.above_75 }} above 75% • {{ sa.below_40 }} below 40%
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Detailed Analysis -->
+{% for sa in subject_analytics %}
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <div>
+      <div class="card-title">{{ sa.subject.name }} ({{ sa.subject.code }})</div>
+      <div class="card-subtitle">Average: {{ sa.avg }}% • {{ sa.total_marks }} marks recorded</div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <span class="badge badge-success">{{ sa.above_75 }} above 75%</span>
+      <span class="badge badge-danger">{{ sa.below_40 }} below 40%</span>
+    </div>
+  </div>
+
+  {% if sa.scores %}
+  <div class="grid-2" style="gap:20px;">
+    <div>
+      <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Score Distribution</div>
+      <canvas id="chart_{{ sa.subject.id }}" height="160"></canvas>
+    </div>
+    <div>
+      <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px;">Grade Breakdown</div>
+      {% set total = sa.scores|length %}
+      {% set grades = {'A (≥75%)': sa.scores|select('ge', 75)|list|length, 'B (60-74%)': sa.scores|select('ge', 60)|list|length - sa.scores|select('ge', 75)|list|length, 'C (50-59%)': sa.scores|select('ge', 50)|list|length - sa.scores|select('ge', 60)|list|length, 'D (40-49%)': sa.scores|select('ge', 40)|list|length - sa.scores|select('ge', 50)|list|length, 'F (<40%)': sa.scores|select('lt', 40)|list|length } %}
+      {% for grade, count in grades.items() %}
+      <div style="margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span class="text-sm">{{ grade }}</span>
+          <span class="text-sm font-semibold">{{ count }} ({{ ((count / total * 100)|round(0)|int) if total > 0 else 0 }}%)</span>
+        </div>
+        <div class="progress-bar-wrapper">
+          <div class="progress-bar {{ 'green' if 'A' in grade else ('blue' if 'B' in grade else ('orange' if 'C' in grade or 'D' in grade else 'red')) }}"
+               style="width:{{ (count / total * 100)|round(0)|int if total > 0 else 0 }}%;"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">📈</div>
+  <div class="empty-title">No analytics data yet</div>
+  <div class="empty-text">Enter marks for your subjects to see performance analytics.</div>
+  <a href="{{ url_for('faculty.marks') }}" class="btn btn-primary btn-sm mt-3">Enter Marks</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+{% for sa in subject_analytics %}
+{% if sa.scores %}
+(function() {
+  const scores = {{ sa.scores | tojson }};
+  const ctx = document.getElementById('chart_{{ sa.subject.id }}').getContext('2d');
+  const bins = [0, 0, 0, 0, 0]; // <40, 40-59, 60-74, 75-89, 90+
+  scores.forEach(s => {
+    if (s < 40) bins[0]++;
+    else if (s < 60) bins[1]++;
+    else if (s < 75) bins[2]++;
+    else if (s < 90) bins[3]++;
+    else bins[4]++;
+  });
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['<40%', '40-59%', '60-74%', '75-89%', '90+%'],
+      datasets: [{
+        label: 'Students',
+        data: bins,
+        backgroundColor: ['rgba(239,68,68,.7)','rgba(245,158,11,.7)','rgba(59,130,246,.7)','rgba(16,185,129,.7)','rgba(6,182,212,.7)'],
+        borderRadius: 6, borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(148,163,184,0.08)' }, ticks: { color: '#94a3b8' } },
+        y: { grid: { color: 'rgba(148,163,184,0.08)' }, ticks: { color: '#94a3b8', stepSize: 1 } }
+      }
+    }
+  });
+})();
+{% endif %}
+{% endfor %}
+</script>
+{% endblock %}

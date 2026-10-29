@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import admin_nav %}
+{% block title %}Faculty Management{% endblock %}
+{% block page_title %}Faculty Management{% endblock %}
+{% block nav %}{{ admin_nav() }}{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary btn-sm" onclick="openModal('addFacultyModal')">➕ Add Faculty</button>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">👨‍🏫 Faculty Members ({{ faculty_list|length }})</div>
+    <button class="btn btn-secondary btn-sm" onclick="openModal('assignModal')">📋 Assign Subject</button>
+  </div>
+  {% if faculty_list %}
+  <div class="table-wrapper" style="border:none;">
+    <table>
+      <thead>
+        <tr><th>Faculty ID</th><th>Name</th><th>Department</th><th>Designation</th><th>Assignments</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for f in faculty_list %}
+        <tr>
+          <td><span class="badge badge-purple">{{ f.faculty_id }}</span></td>
+          <td style="font-weight:500; color:var(--text-primary);">{{ f.name }}</td>
+          <td class="text-sm">{{ f.department.name if f.department else '—' }}</td>
+          <td class="text-sm">{{ f.designation or '—' }}</td>
+          <td class="text-sm">{{ f.subject_assignments|selectattr('is_active')|list|length }} subjects</td>
+          <td>
+            {% if f.is_active %}<span class="badge badge-success">Active</span>
+            {% else %}<span class="badge badge-muted">Inactive</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">👨‍🏫</div>
+    <div class="empty-title">No faculty members yet</div>
+    <button class="btn btn-primary btn-sm mt-3" onclick="openModal('addFacultyModal')">➕ Add Faculty</button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Add Faculty Modal -->
+<div class="modal-overlay" id="addFacultyModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-title">➕ Add Faculty Member</div>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Faculty ID *</label>
+          <input type="text" name="faculty_id" class="form-control" placeholder="FACIT01" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" name="name" class="form-control" placeholder="Dr. Faculty Name" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <select name="department_id" class="form-control">
+            <option value="">— Select Department —</option>
+            {% for d in departments %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Designation</label>
+          <select name="designation" class="form-control">
+            <option>Assistant Professor</option>
+            <option>Associate Professor</option>
+            <option>Professor</option>
+            <option>Head of Department</option>
+            <option>Lab Instructor</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" placeholder="faculty@email.com">
+      </div>
+      <div class="form-hint" style="margin-bottom:12px;">💡 Initial password = Faculty ID</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('addFacultyModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Faculty Account</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Assign Subject Modal -->
+<div class="modal-overlay" id="assignModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-title">📋 Assign Subject to Faculty</div>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="assign">
+      <div class="form-group">
+        <label class="form-label">Faculty Member *</label>
+        <select name="faculty_id" class="form-control" required>
+          {% for f in faculty_list %}<option value="{{ f.id }}">{{ f.name }} ({{ f.faculty_id }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Subject *</label>
+          <select name="subject_id" class="form-control" required>
+            {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }} ({{ s.code }})</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Section *</label>
+          <select name="section_id" class="form-control" required>
+            {% for s in sections %}<option value="{{ s.id }}">{{ s.department.code if s.department else '' }}-{{ s.name }} Sem{{ s.semester }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Academic Year</label>
+        <select name="academic_year_id" class="form-control">
+          {% for ay in academic_years %}<option value="{{ ay.id }}">{{ ay.year_label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('assignModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Assign Subject</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

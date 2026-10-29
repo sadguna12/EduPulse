@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import faculty_nav %}
+{% block title %}Faculty Dashboard{% endblock %}
+{% block page_title %}Faculty Dashboard{% endblock %}
+{% block nav %}{{ faculty_nav() }}{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat-card purple">
+    <div class="stat-icon purple">📚</div>
+    <div class="stat-value">{{ subjects|length }}</div>
+    <div class="stat-label">Assigned Subjects</div>
+  </div>
+  <div class="stat-card blue">
+    <div class="stat-icon blue">🎓</div>
+    <div class="stat-value">{{ student_count }}</div>
+    <div class="stat-label">My Students</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon green">📋</div>
+    <div class="stat-value">{{ sections|length }}</div>
+    <div class="stat-label">Assigned Sections</div>
+  </div>
+  <div class="stat-card orange">
+    <div class="stat-icon orange">📝</div>
+    <div class="stat-value">{{ recent_exams|length }}</div>
+    <div class="stat-label">Recent Exams</div>
+  </div>
+</div>
+
+<div class="grid-2" style="gap:20px;">
+  <!-- Subjects -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📚 My Subjects</div>
+      <a href="{{ url_for('faculty.marks') }}" class="btn btn-secondary btn-sm">Enter Marks →</a>
+    </div>
+    {% if subjects %}
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      {% for s in subjects %}
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg-elevated); border-radius:var(--radius-md);">
+        <div>
+          <div style="font-weight:600; color:var(--text-primary); font-size:0.9rem;">{{ s.name }}</div>
+          <div class="text-xs text-muted">{{ s.code }} • Semester {{ s.semester }} • {{ s.credits }} credits</div>
+        </div>
+        <span class="badge {{ 'badge-purple' if s.subject_type == 'lab' else 'badge-muted' }}">{{ s.subject_type }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">📚</div><div class="empty-title">No subjects assigned yet</div><div class="empty-text">Contact admin to assign subjects</div></div>
+    {% endif %}
+  </div>
+
+  <!-- Recent Exams -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📝 Recent Examinations</div>
+      <a href="{{ url_for('faculty.marks') }}" class="btn btn-secondary btn-sm">Manage →</a>
+    </div>
+    {% if recent_exams %}
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      {% for e in recent_exams %}
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--bg-elevated); border-radius:var(--radius-md);">
+        <div>
+          <div style="font-weight:500; color:var(--text-primary); font-size:0.875rem;">{{ e.name }}</div>
+          <div class="text-xs text-muted">{{ e.subject.name if e.subject else '—' }} • Max: {{ e.max_marks }}</div>
+        </div>
+        <span class="badge {{ 'badge-warning' if e.exam_type == 'internal' else 'badge-danger' }}">{{ e.exam_type }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">No examinations created</div><a href="{{ url_for('faculty.marks') }}" class="btn btn-primary btn-sm mt-3">Create Exam</a></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card" style="margin-top:20px;">
+  <div class="card-header"><div class="card-title">⚡ Quick Actions</div></div>
+  <div style="display:flex; flex-wrap:wrap; gap:10px;">
+    <a href="{{ url_for('faculty.marks') }}" class="btn btn-primary">📝 Enter Marks</a>
+    <a href="{{ url_for('faculty.attendance') }}" class="btn btn-secondary">📅 Record Attendance</a>
+    <a href="{{ url_for('faculty.my_students') }}" class="btn btn-secondary">🎓 View Students</a>
+    <a href="{{ url_for('faculty.analytics') }}" class="btn btn-secondary">📈 Analytics</a>
+    <a href="{{ url_for('faculty.predictions') }}" class="btn btn-secondary">🤖 ML Predictions</a>
+    <a href="{{ url_for('faculty.questions') }}" class="btn btn-secondary">❓ Add Questions</a>
+  </div>
+</div>
+{% endblock %}

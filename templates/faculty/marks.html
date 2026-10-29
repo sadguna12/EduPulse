@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import faculty_nav %}
+{% block title %}Marks Management{% endblock %}
+{% block page_title %}Marks Management{% endblock %}
+{% block nav %}{{ faculty_nav() }}{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="gap:20px; align-items:start;">
+
+  <!-- Filter/Load Form -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📝 Load Students for Marking</div>
+    </div>
+    <form method="POST" id="loadForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="load">
+      <div class="form-group">
+        <label class="form-label">Subject *</label>
+        <select name="subject_id" class="form-control" id="subjectSelect" required>
+          <option value="">— Select Subject —</option>
+          {% for s in subjects %}<option value="{{ s.id }}" {{ 'selected' if selected.get('subject_id') == s.id|string }}>{{ s.name }} ({{ s.code }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Section *</label>
+        <select name="section_id" class="form-control" required>
+          <option value="">— Select Section —</option>
+          {% for s in sections %}<option value="{{ s.id }}" {{ 'selected' if selected.get('section_id') == s.id|string }}>{{ s.department.code if s.department else '' }}-{{ s.name }} (Sem {{ s.semester }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Examination</label>
+        <select name="exam_id" class="form-control">
+          <option value="">— Select Examination —</option>
+          {% for e in examinations %}<option value="{{ e.id }}" {{ 'selected' if selected.get('exam_id') == e.id|string }}>{{ e.subject.name if e.subject else '' }} — {{ e.name }} (Max: {{ e.max_marks }})</option>{% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary w-full" style="width:100%; justify-content:center;">📋 Load Students</button>
+    </form>
+  </div>
+
+  <!-- Create Exam Form -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">➕ Create New Examination</div>
+    </div>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add_exam">
+      <div class="form-group">
+        <label class="form-label">Subject *</label>
+        <select name="subject_id" class="form-control" required>
+          {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Exam Name *</label>
+          <input type="text" name="exam_name" class="form-control" placeholder="IA-1, Semester Exam..." required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <select name="exam_type" class="form-control">
+            <option value="internal">Internal Assessment</option>
+            <option value="semester">Semester Exam</option>
+            <option value="assignment">Assignment</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Max Marks *</label>
+          <input type="number" name="max_marks" class="form-control" value="30" min="1" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Section</label>
+          <select name="section_id" class="form-control">
+            <option value="">All Sections</option>
+            {% for s in sections %}<option value="{{ s.id }}">{{ s.department.code if s.department else '' }}-{{ s.name }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Exam Date</label>
+          <input type="date" name="exam_date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Academic Year</label>
+          <select name="academic_year_id" class="form-control">
+            {% for ay in academic_years %}<option value="{{ ay.id }}">{{ ay.year_label }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-success w-full" style="width:100%; justify-content:center;">➕ Create Examination</button>
+    </form>
+  </div>
+</div>
+
+<!-- Marks Entry Table -->
+{% if students_marks %}
+{% set exam = examinations | selectattr('id', 'equalto', selected.exam_id|int) | first if selected.exam_id else None %}
+<div class="card" style="margin-top:20px;">
+  <div class="card-header">
+    <div>
+      <div class="card-title">📝 Enter Marks</div>
+      {% if exam %}<div class="card-subtitle">{{ exam.name }} — Max Marks: {{ exam.max_marks }}</div>{% endif %}
+    </div>
+    <span class="badge badge-primary">{{ students_marks|length }} students</span>
+  </div>
+
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="save_marks">
+    <input type="hidden" name="exam_id" value="{{ selected.get('exam_id', '') }}">
+    <input type="hidden" name="section_id" value="{{ selected.get('section_id', '') }}">
+    <input type="hidden" name="subject_id" value="{{ selected.get('subject_id', '') }}">
+
+    <div class="table-wrapper" style="border:none;">
+      <table>
+        <thead>
+          <tr><th>Roll No.</th><th>Name</th><th>Current Marks</th><th>Enter Marks (Max: {% if exam %}{{ exam.max_marks }}{% else %}—{% endif %})</th><th>Absent</th></tr>
+        </thead>
+        <tbody>
+          {% for sm in students_marks %}
+          <tr>
+            <td><span class="badge badge-primary">{{ sm.student.roll_number }}</span></td>
+            <td style="font-weight:500; color:var(--text-primary);">{{ sm.student.name }}</td>
+            <td>
+              {% if sm.mark %}
+              <span class="{{ 'grade-a' if (sm.mark.marks_obtained / exam.max_marks * 100) >= 75 else ('grade-c' if (sm.mark.marks_obtained / exam.max_marks * 100) >= 50 else 'grade-f') }}" style="font-weight:600;">
+                {{ sm.mark.marks_obtained }}
+              </span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td>
+              <input type="number" name="mark_{{ sm.student.id }}"
+                     class="form-control" style="width:100px;"
+                     value="{{ sm.mark.marks_obtained if sm.mark else '' }}"
+                     min="0" max="{{ exam.max_marks if exam else 100 }}"
+                     step="0.5" placeholder="0">
+            </td>
+            <td>
+              <input type="checkbox" name="absent_{{ sm.student.id }}" {{ 'checked' if sm.mark and sm.mark.is_absent else '' }}>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="padding:16px 0; display:flex; gap:10px;">
+      <button type="submit" class="btn btn-primary">💾 Save All Marks</button>
+      <a href="{{ url_for('faculty.export_marks') }}" class="btn btn-secondary">📥 Export Marks</a>
+    </div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

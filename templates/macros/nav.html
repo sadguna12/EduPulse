@@ -1,0 +1,95 @@
+{% macro admin_nav() %}
+<span class="nav-group-label">Overview</span>
+<a href="{{ url_for('admin.dashboard') }}" class="nav-item">
+  <span class="nav-icon">📊</span> Overview
+</a>
+<span class="nav-group-label">Management</span>
+<a href="{{ url_for('admin.departments') }}" class="nav-item">
+  <span class="nav-icon">🏛️</span> Departments & Sections
+</a>
+<a href="{{ url_for('admin.students') }}" class="nav-item">
+  <span class="nav-icon">🎓</span> Student Management
+</a>
+<a href="{{ url_for('admin.faculty') }}" class="nav-item">
+  <span class="nav-icon">👨‍🏫</span> Faculty Management
+</a>
+<a href="{{ url_for('admin.subjects') }}" class="nav-item">
+  <span class="nav-icon">📚</span> Subjects & Academics
+</a>
+<span class="nav-group-label">Data & Analytics</span>
+<a href="{{ url_for('admin.dataset') }}" class="nav-item">
+  <span class="nav-icon">📂</span> Dataset Management
+</a>
+<a href="{{ url_for('admin.analytics') }}" class="nav-item">
+  <span class="nav-icon">📈</span> Institution Analytics
+</a>
+<a href="{{ url_for('admin.settings') }}" class="nav-item">
+  <span class="nav-icon">⚙️</span> Settings
+</a>
+{% endmacro %}
+
+{% macro faculty_nav() %}
+<span class="nav-group-label">Overview</span>
+<a href="{{ url_for('faculty.dashboard') }}" class="nav-item">
+  <span class="nav-icon">📊</span> Overview
+</a>
+<span class="nav-group-label">Academics</span>
+<a href="{{ url_for('faculty.my_students') }}" class="nav-item">
+  <span class="nav-icon">🎓</span> My Students
+</a>
+<a href="{{ url_for('faculty.marks') }}" class="nav-item">
+  <span class="nav-icon">📝</span> Marks Management
+</a>
+<a href="{{ url_for('faculty.attendance') }}" class="nav-item">
+  <span class="nav-icon">📅</span> Attendance
+</a>
+<a href="{{ url_for('faculty.analytics') }}" class="nav-item">
+  <span class="nav-icon">📈</span> Performance Analytics
+</a>
+<a href="{{ url_for('faculty.predictions') }}" class="nav-item">
+  <span class="nav-icon">🤖</span> ML Predictions
+</a>
+<span class="nav-group-label">Tools</span>
+<a href="{{ url_for('faculty.questions') }}" class="nav-item">
+  <span class="nav-icon">❓</span> Question Bank
+</a>
+<a href="{{ url_for('faculty.tasks') }}" class="nav-item">
+  <span class="nav-icon">✅</span> Tasks & Alerts
+</a>
+<a href="{{ url_for('faculty.reports') }}" class="nav-item">
+  <span class="nav-icon">📥</span> Reports & Downloads
+</a>
+{% endmacro %}
+
+{% macro student_nav() %}
+<span class="nav-group-label">My Dashboard</span>
+<a href="{{ url_for('student.dashboard') }}" class="nav-item">
+  <span class="nav-icon">🏠</span> Dashboard
+</a>
+<span class="nav-group-label">Academics</span>
+<a href="{{ url_for('student.performance') }}" class="nav-item">
+  <span class="nav-icon">📊</span> My Performance
+</a>
+<a href="{{ url_for('student.prediction') }}" class="nav-item">
+  <span class="nav-icon">🔮</span> Performance Prediction
+</a>
+<a href="{{ url_for('student.weak_areas') }}" class="nav-item">
+  <span class="nav-icon">⚠️</span> Strengths & Weak Areas
+</a>
+<a href="{{ url_for('student.attendance') }}" class="nav-item">
+  <span class="nav-icon">📅</span> My Attendance
+</a>
+<span class="nav-group-label">Growth</span>
+<a href="{{ url_for('student.study_plan') }}" class="nav-item">
+  <span class="nav-icon">📋</span> Weekly Study Plan
+</a>
+<a href="{{ url_for('student.practice') }}" class="nav-item">
+  <span class="nav-icon">❓</span> Practice Questions
+</a>
+<a href="{{ url_for('student.self_improvement') }}" class="nav-item">
+  <span class="nav-icon">🎯</span> Self-Improvement
+</a>
+<a href="{{ url_for('student.reports') }}" class="nav-item">
+  <span class="nav-icon">📥</span> My Reports
+</a>
+{% endmacro %}

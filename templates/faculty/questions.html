@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import faculty_nav %}
+{% block title %}Question Bank{% endblock %}
+{% block page_title %}Question Bank{% endblock %}
+{% block nav %}{{ faculty_nav() }}{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn btn-primary btn-sm" onclick="openModal('addQModal')">➕ Add Question</button>
+{% endblock %}
+
+{% block content %}
+<!-- Filter -->
+<div class="card mb-4" style="margin-bottom:16px;">
+  <form method="GET" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+    <div class="form-group" style="margin:0; min-width:180px;">
+      <label class="form-label">Filter by Subject</label>
+      <select name="subject_id" class="form-control">
+        <option value="">All Subjects</option>
+        {% for s in subjects %}<option value="{{ s.id }}" {{ 'selected' if subj_filter == s.id|string }}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">🔍 Filter</button>
+    <a href="{{ url_for('faculty.questions') }}" class="btn btn-secondary">✕ Clear</a>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">❓ Questions ({{ questions|length }})</div>
+  </div>
+  {% if questions %}
+  <div style="display:flex; flex-direction:column; gap:12px;">
+    {% for q in questions %}
+    <div style="padding:14px 16px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
+      <div style="display:flex; justify-content:space-between; align-items:start; gap:12px;">
+        <div style="flex:1;">
+          <div style="font-weight:500; color:var(--text-primary); margin-bottom:8px;">{{ q.question_text }}</div>
+          {% if q.option_a %}
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; font-size:0.8rem;">
+            {% for letter, opt in [('A', q.option_a), ('B', q.option_b), ('C', q.option_c), ('D', q.option_d)] %}
+            <span style="color:{{ 'var(--accent-green)' if letter == q.correct_answer else 'var(--text-muted)' }}; font-weight:{{ '600' if letter == q.correct_answer else '400' }};">
+              {{ letter }}) {{ opt }}
+            </span>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% if q.explanation %}
+          <div class="text-xs text-muted" style="margin-top:6px;">💡 {{ q.explanation }}</div>
+          {% endif %}
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; flex-shrink:0;">
+          <span class="badge {{ 'badge-danger' if q.difficulty == 'hard' else ('badge-warning' if q.difficulty == 'medium' else 'badge-success') }}">{{ q.difficulty }}</span>
+          {% if q.topic %}<span class="badge badge-muted">{{ q.topic }}</span>{% endif %}
+          <form method="POST" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="question_id" value="{{ q.id }}">
+            <button class="btn btn-danger btn-sm" onclick="return confirm('Delete this question?')">🗑️</button>
+          </form>
+        </div>
+      </div>
+      <div class="text-xs text-muted mt-2" style="margin-top:8px;">
+        Subject: {{ q.subject.name if q.subject else '—' }} • {{ q.attempts|length }} attempts
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">❓</div>
+    <div class="empty-title">No questions yet</div>
+    <button class="btn btn-primary btn-sm mt-3" onclick="openModal('addQModal')">➕ Add First Question</button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Add Question Modal -->
+<div class="modal-overlay" id="addQModal">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-title">➕ Add Practice Question</div>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Subject *</label>
+          <select name="subject_id" class="form-control" required>
+            {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Topic</label>
+          <input type="text" name="topic" class="form-control" placeholder="Algorithms, DBMS...">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Question *</label>
+        <textarea name="question_text" class="form-control" rows="3" placeholder="Enter question text..." required></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Option A</label>
+          <input type="text" name="option_a" class="form-control" placeholder="Option A">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Option B</label>
+          <input type="text" name="option_b" class="form-control" placeholder="Option B">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Option C</label>
+          <input type="text" name="option_c" class="form-control" placeholder="Option C">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Option D</label>
+          <input type="text" name="option_d" class="form-control" placeholder="Option D">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Correct Answer</label>
+          <select name="correct_answer" class="form-control">
+            <option value="A">A</option><option value="B">B</option>
+            <option value="C">C</option><option value="D">D</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Difficulty</label>
+          <select name="difficulty" class="form-control">
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Explanation (optional)</label>
+        <textarea name="explanation" class="form-control" rows="2" placeholder="Explanation for the correct answer..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('addQModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Question</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

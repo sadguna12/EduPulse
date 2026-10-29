@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import student_nav %}
+{% block title %}My Dashboard{% endblock %}
+{% block page_title %}My Dashboard{% endblock %}
+{% block nav %}{{ student_nav() }}{% endblock %}
+
+{% block content %}
+<!-- Motivational Quote -->
+{% if quote %}
+<div style="padding:14px 20px; background:linear-gradient(135deg, rgba(59,130,246,.1), rgba(139,92,246,.1)); border-radius:var(--radius-lg); border:1px solid rgba(59,130,246,.2); margin-bottom:20px; display:flex; align-items:center; gap:12px;">
+  <span style="font-size:1.5rem;">✨</span>
+  <div>
+    <div style="font-style:italic; color:var(--text-secondary); font-size:0.9rem;">"{{ quote.quote_text }}"</div>
+    {% if quote.author %}<div class="text-xs text-muted mt-1" style="margin-top:4px;">— {{ quote.author }}</div>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="stat-grid">
+  <div class="stat-card blue">
+    <div class="stat-icon blue">📊</div>
+    <div class="stat-value">{{ overall_avg }}%</div>
+    <div class="stat-label">Overall Average</div>
+    <div class="stat-change {{ 'positive' if overall_avg >= 60 else 'negative' }}">
+      {{ 'Above average' if overall_avg >= 60 else 'Needs improvement' }}
+    </div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon green">📅</div>
+    <div class="stat-value">{{ att_pct }}%</div>
+    <div class="stat-label">Attendance</div>
+    <div class="stat-change {{ 'positive' if att_pct >= 75 else 'negative' }}">
+      {{ 'Good' if att_pct >= 75 else '⚠️ Below 75% threshold' }}
+    </div>
+  </div>
+  <div class="stat-card purple">
+    <div class="stat-icon purple">📚</div>
+    <div class="stat-value">{{ subject_avgs|length }}</div>
+    <div class="stat-label">Subjects This Semester</div>
+  </div>
+  <div class="stat-card orange">
+    <div class="stat-icon orange">✅</div>
+    <div class="stat-value">{{ pending_tasks|length }}</div>
+    <div class="stat-label">Pending Tasks</div>
+  </div>
+</div>
+
+<div class="grid-2" style="gap:20px;">
+  <!-- Subject Performance -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📊 Subject-wise Performance</div>
+      <a href="{{ url_for('student.performance') }}" class="btn btn-secondary btn-sm">View All →</a>
+    </div>
+    {% if subject_avgs %}
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      {% for sa in subject_avgs %}
+      <div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span class="text-sm" style="font-weight:500; color:var(--text-secondary);">{{ sa.subject_name }}</span>
+          <span class="text-sm font-semibold {{ 'grade-a' if sa.pct >= 75 else ('grade-c' if sa.pct >= 50 else 'grade-f') }}">{{ sa.pct | round(1) }}%</span>
+        </div>
+        <div class="progress-bar-wrapper">
+          <div class="progress-bar {{ 'green' if sa.pct >= 75 else ('orange' if sa.pct >= 50 else 'red') }}" style="width:{{ sa.pct | round(0) | int }}%;"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">No marks recorded yet</div></div>
+    {% endif %}
+  </div>
+
+  <!-- Pending Tasks & Recent Marks -->
+  <div style="display:flex; flex-direction:column; gap:20px;">
+    <!-- Tasks -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">✅ Pending Tasks</div>
+        <a href="{{ url_for('student.study_plan') }}" class="btn btn-secondary btn-sm">View All →</a>
+      </div>
+      {% if pending_tasks %}
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        {% for task in pending_tasks %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--bg-elevated); border-radius:var(--radius-md); border-left:3px solid {{ 'var(--accent-red)' if task.priority == 'high' else ('var(--accent-orange)' if task.priority == 'medium' else 'var(--accent-green)') }};">
+          <div>
+            <div style="font-size:0.875rem; font-weight:500; color:var(--text-primary);">{{ task.title }}</div>
+            {% if task.due_date %}<div class="text-xs text-muted">Due: {{ task.due_date.strftime('%d %b %Y') }}</div>{% endif %}
+          </div>
+          <span class="badge {{ 'badge-danger' if task.priority == 'high' else 'badge-warning' }}">{{ task.priority }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding:20px;"><div class="empty-icon">✅</div><div class="empty-title">No pending tasks</div></div>
+      {% endif %}
+    </div>
+
+    <!-- Recent Marks -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📝 Recent Marks</div>
+        <a href="{{ url_for('student.performance') }}" class="btn btn-secondary btn-sm">View All →</a>
+      </div>
+      {% if recent_marks %}
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        {% for m in recent_marks %}
+        {% if m.examination %}
+        <div style="display:flex; justify-content:space-between; padding:8px 12px; background:var(--bg-elevated); border-radius:var(--radius-sm);">
+          <div>
+            <div class="text-sm font-semibold">{{ m.subject.name if m.subject else '—' }}</div>
+            <div class="text-xs text-muted">{{ m.examination.name }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="text-sm font-bold {{ 'grade-a' if (m.marks_obtained / m.examination.max_marks * 100) >= 75 else ('grade-c' if (m.marks_obtained / m.examination.max_marks * 100) >= 50 else 'grade-f') }}">
+              {{ m.marks_obtained }}/{{ m.examination.max_marks }}
+            </div>
+            <div class="text-xs text-muted">{{ (m.marks_obtained / m.examination.max_marks * 100)|round(1) }}%</div>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding:20px;"><div class="empty-icon">📝</div><div class="empty-title">No marks yet</div></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Quick Navigation -->
+<div class="card" style="margin-top:20px;">
+  <div class="card-header"><div class="card-title">🚀 Quick Access</div></div>
+  <div style="display:flex; flex-wrap:wrap; gap:10px;">
+    <a href="{{ url_for('student.performance') }}" class="btn btn-primary">📊 My Performance</a>
+    <a href="{{ url_for('student.prediction') }}" class="btn btn-secondary">🔮 See Prediction</a>
+    <a href="{{ url_for('student.attendance') }}" class="btn btn-secondary">📅 My Attendance</a>
+    <a href="{{ url_for('student.practice') }}" class="btn btn-secondary">❓ Practice Now</a>
+    <a href="{{ url_for('student.self_improvement') }}" class="btn btn-secondary">🎯 My Goals</a>
+    <a href="{{ url_for('student.reports') }}" class="btn btn-secondary">📥 Download Report</a>
+  </div>
+</div>
+{% endblock %}

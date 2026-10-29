@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import student_nav %}
+{% block title %}Weekly Study Plan & Tasks{% endblock %}
+{% block page_title %}Weekly Study Plan & Task Management{% endblock %}
+{% block nav %}{{ student_nav() }}{% endblock %}
+
+{% block content %}
+<!-- Plan Overview Stats -->
+{% set total_tasks = tasks|length %}
+{% set completed_tasks = tasks | selectattr('is_completed', 'equalto', true) | list | length %}
+{% set task_pct = ((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0) | round(0) | int %}
+
+<div class="stat-grid" style="margin-bottom:24px;">
+  <div class="stat-card blue">
+    <div class="stat-icon blue">📋</div>
+    <div class="stat-value">{{ total_tasks }}</div>
+    <div class="stat-label">Assigned Tasks</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon green">✅</div>
+    <div class="stat-value">{{ completed_tasks }}</div>
+    <div class="stat-label">Tasks Completed</div>
+    <div class="stat-change positive">{{ task_pct }}% Completion Rate</div>
+  </div>
+  <div class="stat-card orange">
+    <div class="stat-icon orange">⏳</div>
+    <div class="stat-value">{{ total_tasks - completed_tasks }}</div>
+    <div class="stat-label">Tasks Pending</div>
+    <div class="stat-change {{ 'negative' if (total_tasks - completed_tasks) > 3 else 'neutral' }}">Action required</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-icon red">⚠️</div>
+    <div class="stat-value">{{ weak_subjects|length }}</div>
+    <div class="stat-label">Priority Focus Subjects</div>
+    <div class="stat-change negative">&lt;60% Score threshold</div>
+  </div>
+</div>
+
+<!-- Weak Subjects Attention Banner -->
+{% if weak_subjects %}
+<div style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.25); border-radius:var(--radius-lg); padding:16px 20px; margin-bottom:24px; display:flex; align-items:center; gap:16px;">
+  <span style="font-size:1.8rem;">🎯</span>
+  <div style="flex:1;">
+    <h4 style="font-size:0.95rem; font-weight:700; color:var(--accent-red); margin:0 0 4px 0;">Study Allocation Priority</h4>
+    <p style="font-size:0.875rem; color:var(--text-secondary); margin:0;">
+      Your performance data indicates that you should dedicate extra study slots to:
+      <strong style="color:var(--text-primary);">{{ weak_subjects | join(', ') }}</strong>.
+    </p>
+  </div>
+</div>
+{% endif %}
+
+<!-- Recommended Weekly Schedule -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <div>
+      <div class="card-title">📅 Recommended Weekly Study Timetable</div>
+      <div class="card-subtitle">Optimized study slots balanced with lecture commitments</div>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Day</th>
+          <th>Primary Focus (2 hrs)</th>
+          <th>Secondary Focus (1.5 hrs)</th>
+          <th>Evening Review (45 min)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="font-weight:600; color:var(--text-primary);">Monday</td>
+          <td><span class="badge badge-danger">{{ weak_subjects[0] if weak_subjects else 'Core Engineering / Major' }}</span> (Foundations)</td>
+          <td>Practice Problem Solving</td>
+          <td>Daily lecture synthesis & flashcards</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600; color:var(--text-primary);">Tuesday</td>
+          <td>Department Core Subject</td>
+          <td><span class="badge badge-warning">{{ weak_subjects[1] if weak_subjects|length > 1 else 'Analytical Subject' }}</span></td>
+          <td>MCQ Question Practice</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600; color:var(--text-primary);">Wednesday</td>
+          <td>Laboratory & Applied Theory</td>
+          <td><span class="badge badge-danger">{{ weak_subjects[0] if weak_subjects else 'Challenging Module' }}</span></td>
+          <td>Formula sheet & derivation review</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600; color:var(--text-primary);">Thursday</td>
+          <td>Department Core Subject</td>
+          <td>Programming / System Design</td>
+          <td>Summary notes generation</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600; color:var(--text-primary);">Friday</td>
+          <td>Elective / Seminar Preparation</td>
+          <td><span class="badge badge-danger">{{ weak_subjects[0] if weak_subjects else 'Weak Area Revision' }}</span></td>
+          <td>Weekly progress self-audit</td>
+        </tr>
+        <tr>
+          <td style="font-weight:600; color:var(--text-primary);">Saturday</td>
+          <td>Mock Assessment / Timed Test</td>
+          <td>Error log analysis</td>
+          <td>Relaxation & conceptual reading</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Task Checklist -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">✅ Faculty & Personal Study Tasks ({{ tasks|length }})</div>
+      <div class="card-subtitle">Mark tasks as complete as you finish each milestone</div>
+    </div>
+    <div style="font-size:0.875rem; color:var(--text-muted);">
+      {{ completed_tasks }} of {{ total_tasks }} done ({{ task_pct }}%)
+    </div>
+  </div>
+
+  <!-- Overall Progress Bar -->
+  <div class="progress-bar-wrapper" style="height:8px; margin-bottom:20px;">
+    <div class="progress-bar green" style="width:{{ task_pct }}%;"></div>
+  </div>
+
+  {% if tasks %}
+  <div style="display:flex; flex-direction:column; gap:12px;">
+    {% for task in tasks %}
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px; background:var(--bg-elevated); border-radius:var(--radius-lg); border:1px solid var(--border-color); border-left:4px solid {{ 'var(--accent-red)' if task.priority == 'high' else ('var(--accent-orange)' if task.priority == 'medium' else 'var(--accent-green)') }}; opacity:{{ '0.65' if task.is_completed else '1' }};">
+      <div style="display:flex; align-items:flex-start; gap:14px; flex:1;">
+        <form method="POST" action="{{ url_for('student.complete_task', task_id=task.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" style="background:none; border:none; cursor:pointer; font-size:1.4rem; padding:0; line-height:1;" title="{{ 'Mark Incomplete' if task.is_completed else 'Mark Complete' }}">
+            {{ '✅' if task.is_completed else '⭕' }}
+          </button>
+        </form>
+
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:0.95rem; color:var(--text-primary); text-decoration:{{ 'line-through' if task.is_completed else 'none' }}; margin-bottom:4px;">
+            {{ task.title }}
+          </div>
+          {% if task.description %}
+          <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:6px; line-height:1.4;">
+            {{ task.description }}
+          </div>
+          {% endif %}
+          <div style="display:flex; align-items:center; gap:12px; font-size:0.75rem; color:var(--text-muted);">
+            {% if task.due_date %}
+            <span>📅 Due: {{ task.due_date.strftime('%d %b %Y') }}</span>
+            {% endif %}
+            {% if task.is_completed and task.completed_at %}
+            <span style="color:var(--accent-green);">✓ Completed on {{ task.completed_at.strftime('%d %b %Y') }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="badge {{ 'badge-danger' if task.priority == 'high' else ('badge-warning' if task.priority == 'medium' else 'badge-success') }}">
+          {{ task.priority | capitalize }}
+        </span>
+        <form method="POST" action="{{ url_for('student.complete_task', task_id=task.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-secondary btn-sm">
+            {{ 'Reopen' if task.is_completed else 'Complete' }}
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">✅</div>
+    <div class="empty-title">All caught up!</div>
+    <div class="empty-text">No active study tasks or faculty assignments are pending.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

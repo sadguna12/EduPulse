@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import faculty_nav %}
+{% block title %}Reports & Downloads{% endblock %}
+{% block page_title %}Reports & Downloads{% endblock %}
+{% block nav %}{{ faculty_nav() }}{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="gap:20px;">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📥 Export Data</div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <a href="{{ url_for('faculty.export_marks') }}" class="btn btn-primary">📊 Export Marks (CSV)</a>
+      <div class="rec-card info" style="margin-top:8px;">
+        Exports marks for all students in your assigned sections. Data is filtered to your access permissions.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📋 Summary</div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border-subtle);">
+        <span class="text-secondary">Assigned Subjects</span>
+        <span class="font-semibold">{{ subjects|length }}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border-subtle);">
+        <span class="text-secondary">Assigned Sections</span>
+        <span class="font-semibold">{{ sections|length }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

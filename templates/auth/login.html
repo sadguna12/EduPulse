@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign In{% endblock %}
+
+{% block auth_content %}
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; background: var(--bg-base); padding: 20px;">
+  <!-- Background decoration -->
+  <div style="position:fixed; inset:0; overflow:hidden; pointer-events:none;">
+    <div style="position:absolute; width:600px; height:600px; border-radius:50%; background:radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%); top:-200px; left:-200px;"></div>
+    <div style="position:absolute; width:500px; height:500px; border-radius:50%; background:radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%); bottom:-150px; right:-150px;"></div>
+  </div>
+
+  <div style="max-width:420px; width:100%; position:relative; z-index:1;">
+    <!-- Brand Header -->
+    <div style="text-align:center; margin-bottom:28px;">
+      <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; background:linear-gradient(135deg, var(--brand-500), var(--accent-purple)); border-radius:var(--radius-lg); font-size:2rem; margin-bottom:16px; box-shadow:0 0 30px rgba(59,130,246,0.3);">🎓</div>
+      <h1 style="font-family:var(--font-display); font-size:2rem; font-weight:800; background:linear-gradient(135deg, var(--brand-400), var(--accent-purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:6px;">EduPulse</h1>
+      <p style="color:var(--text-muted); font-size:0.9rem;">Academic Intelligence & Performance Prediction Platform</p>
+    </div>
+
+    <!-- Login Card -->
+    <div class="card" style="padding:32px; border:1px solid var(--border-default); box-shadow: var(--shadow-xl);">
+      <h2 style="font-size:1.25rem; font-weight:700; color:var(--text-primary); margin-bottom:6px;">Institutional Sign In</h2>
+      <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:24px;">Enter your institutional ID and password to access your portal</p>
+
+      <form method="POST" action="{{ url_for('auth.login') }}" id="loginForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group" style="margin-bottom:18px;">
+          <label class="form-label" for="unique_id" style="font-weight:600;">Institutional ID</label>
+          <input
+            type="text"
+            id="unique_id"
+            name="unique_id"
+            class="form-control"
+            placeholder="e.g., ADMIN001, FACIT01, IT24001A"
+            autocomplete="username"
+            required
+            style="font-size:0.95rem; padding:12px 14px;"
+          >
+          <div class="form-hint">Administrator, Faculty, or Student ID</div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:24px;">
+          <label class="form-label" for="password" style="font-weight:600;">Password</label>
+          <div style="position:relative;">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="form-control"
+              placeholder="Enter your account password"
+              autocomplete="current-password"
+              required
+              style="font-size:0.95rem; padding:12px 14px; padding-right:44px;"
+            >
+            <button type="button" onclick="togglePassword()" id="eyeBtn"
+              style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1.1rem; padding:4px;"
+              aria-label="Show or hide password">👁️</button>
+          </div>
+          <div class="form-hint">For initial demonstration accounts, default password matches your ID</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-full" style="width:100%; justify-content:center; padding:13px; font-size:1rem; font-weight:600;" id="loginBtn">
+          Sign In
+        </button>
+      </form>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align:center; margin-top:24px; color:var(--text-muted); font-size:0.8rem; line-height:1.6;">
+      <p>🔒 Institutional grade encryption &bull; Role-based access control</p>
+      <p style="opacity:0.6;">&copy; EduPulse Academic Intelligence Platform</p>
+    </div>
+  </div>
+</div>
+
+<script>
+function togglePassword() {
+  const pwd = document.getElementById('password');
+  const btn = document.getElementById('eyeBtn');
+  if (pwd.type === 'password') {
+    pwd.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    pwd.type = 'password';
+    btn.textContent = '👁️';
+  }
+}
+
+document.getElementById('loginForm').addEventListener('submit', function() {
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = 'Authenticating...';
+  btn.disabled = true;
+});
+</script>
+{% endblock %}

@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import student_nav %}
+{% block title %}My Academic Performance{% endblock %}
+{% block page_title %}Academic Performance{% endblock %}
+{% block nav %}{{ student_nav() }}{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+  <div class="stat-card blue">
+    <div class="stat-icon blue">📚</div>
+    <div class="stat-value">{{ subject_data|length }}</div>
+    <div class="stat-label">Enrolled Subjects</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon green">🎯</div>
+    {% set passed_count = subject_data | selectattr('avg', 'ge', 40) | list | length %}
+    <div class="stat-value">{{ passed_count }} / {{ subject_data|length }}</div>
+    <div class="stat-label">Subjects Cleared (≥40%)</div>
+  </div>
+  <div class="stat-card purple">
+    <div class="stat-icon purple">🏆</div>
+    {% set distinction_count = subject_data | selectattr('avg', 'ge', 75) | list | length %}
+    <div class="stat-value">{{ distinction_count }}</div>
+    <div class="stat-label">Distinctions (≥75%)</div>
+  </div>
+  <div class="stat-card pink">
+    <div class="stat-icon pink">📝</div>
+    <div class="stat-value">{{ all_marks|length }}</div>
+    <div class="stat-label">Total Tests Recorded</div>
+  </div>
+</div>
+
+<!-- Performance Charts -->
+<div class="grid-2" style="gap:20px; margin-bottom:24px;">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">📊 Subject Score Breakdown</div>
+        <div class="card-subtitle">Average score percentage by subject</div>
+      </div>
+    </div>
+    {% if subject_data %}
+    <div class="chart-container" style="height:280px; position:relative;">
+      <canvas id="subjectChart"></canvas>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📊</div>
+      <div class="empty-title">No subject data available</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">📈 Grade Classification</div>
+        <div class="card-subtitle">Distribution of grades achieved</div>
+      </div>
+    </div>
+    {% if subject_data %}
+    <div class="chart-container" style="height:280px; position:relative;">
+      <canvas id="gradeChart"></canvas>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📈</div>
+      <div class="empty-title">No grade distribution data</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Subject Cards Grid -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <div>
+      <div class="card-title">📋 Subject-wise Breakdown</div>
+      <div class="card-subtitle">Individual subject grades, averages, and evaluations</div>
+    </div>
+  </div>
+  {% if subject_data %}
+  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;">
+    {% for s in subject_data %}
+    <div style="background:var(--bg-elevated); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:16px; display:flex; flex-direction:column; justify-content:space-between;">
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+          <h4 style="font-size:1rem; font-weight:600; color:var(--text-primary); margin:0;">{{ s.name }}</h4>
+          <span class="badge {{ 'badge-success' if s.grade in ['A+', 'A'] else ('badge-primary' if s.grade in ['B+', 'B'] else ('badge-warning' if s.grade == 'C' else 'badge-danger')) }}" style="font-size:0.85rem; font-weight:700;">
+            Grade {{ s.grade }}
+          </span>
+        </div>
+        <div style="font-size:1.75rem; font-weight:700; color:var(--text-primary); margin-bottom:8px;">
+          {{ s.avg }}<span style="font-size:1rem; color:var(--text-muted); font-weight:400;">%</span>
+        </div>
+        <div class="progress-bar-wrapper" style="margin-bottom:12px;">
+          <div class="progress-bar {{ 'green' if s.avg >= 75 else ('orange' if s.avg >= 50 else 'red') }}" style="width:{{ s.avg | round(0) | int }}%;"></div>
+        </div>
+      </div>
+      <div style="font-size:0.8rem; color:var(--text-muted); display:flex; justify-content:space-between; padding-top:8px; border-top:1px solid var(--border-color);">
+        <span>Tests: {{ s.exams|length }}</span>
+        <span style="color:{{ 'var(--accent-green)' if s.avg >= 75 else ('var(--accent-orange)' if s.avg >= 50 else 'var(--accent-red)') }};">
+          {{ 'Mastery' if s.avg >= 85 else ('Solid' if s.avg >= 70 else ('Average' if s.avg >= 50 else 'Critical Attention')) }}
+        </span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📚</div>
+    <div class="empty-title">No subjects found</div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Detailed Marks History Table -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">📜 Complete Examination Log</div>
+      <div class="card-subtitle">All assessments recorded to date</div>
+    </div>
+    <a href="{{ url_for('student.download_marks') }}" class="btn btn-secondary btn-sm">
+      📥 Export CSV
+    </a>
+  </div>
+
+  {% if all_marks %}
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Subject</th>
+          <th>Examination</th>
+          <th>Type</th>
+          <th>Score</th>
+          <th>Percentage</th>
+          <th>Grade</th>
+          <th>Date Recorded</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in all_marks %}
+        {% set pct = ((m.marks_obtained / m.examination.max_marks * 100) if m.examination and m.examination.max_marks > 0 else 0) | round(1) %}
+        <tr>
+          <td style="font-weight:600; color:var(--text-primary);">
+            {{ m.subject.name if m.subject else 'Unknown' }}
+          </td>
+          <td>{{ m.examination.name if m.examination else 'Test' }}</td>
+          <td>
+            <span class="badge {{ 'badge-purple' if m.examination and m.examination.exam_type == 'semester' else 'badge-primary' }}">
+              {{ m.examination.exam_type | capitalize if m.examination else 'N/A' }}
+            </span>
+          </td>
+          <td style="font-family:monospace; font-weight:600;">
+            {{ m.marks_obtained }} / {{ m.examination.max_marks if m.examination else 100 }}
+          </td>
+          <td>
+            <span class="font-semibold {{ 'grade-a' if pct >= 75 else ('grade-c' if pct >= 50 else 'grade-f') }}">
+              {{ pct }}%
+            </span>
+          </td>
+          <td>
+            <span class="badge {{ 'badge-success' if pct >= 75 else ('badge-warning' if pct >= 50 else 'badge-danger') }}">
+              {% if pct >= 90 %}A+{% elif pct >= 80 %}A{% elif pct >= 70 %}B+{% elif pct >= 60 %}B{% elif pct >= 50 %}C{% elif pct >= 40 %}D{% else %}F{% endif %}
+            </span>
+          </td>
+          <td class="text-sm text-muted">
+            {{ m.recorded_at.strftime('%d %b %Y') if m.recorded_at else '—' }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📝</div>
+    <div class="empty-title">No marks recorded yet</div>
+    <div class="empty-text">Once your instructors publish examination results, they will appear here.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+{% if subject_data %}
+// Subject Bar Chart
+const subCtx = document.getElementById('subjectChart').getContext('2d');
+new Chart(subCtx, {
+  type: 'bar',
+  data: {
+    labels: {{ subject_data | map(attribute='name') | list | tojson }},
+    datasets: [{
+      label: 'Average %',
+      data: {{ subject_data | map(attribute='avg') | list | tojson }},
+      backgroundColor: [
+        'rgba(59, 130, 246, 0.75)',
+        'rgba(16, 185, 129, 0.75)',
+        'rgba(139, 92, 246, 0.75)',
+        'rgba(245, 158, 11, 0.75)',
+        'rgba(236, 72, 153, 0.75)',
+        'rgba(6, 182, 212, 0.75)'
+      ],
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false }
+    },
+    scales: {
+      y: {
+        min: 0,
+        max: 100,
+        grid: { color: 'rgba(148, 163, 184, 0.1)' },
+        ticks: { color: '#94a3b8' }
+      },
+      x: {
+        grid: { color: 'rgba(148, 163, 184, 0.05)' },
+        ticks: { color: '#94a3b8' }
+      }
+    }
+  }
+});
+
+// Grade Doughnut Chart
+const gradeCounts = {'A+/A': 0, 'B+/B': 0, 'C/D': 0, 'F': 0};
+{{ subject_data | tojson }}.forEach(s => {
+  if (s.avg >= 80) gradeCounts['A+/A']++;
+  else if (s.avg >= 60) gradeCounts['B+/B']++;
+  else if (s.avg >= 40) gradeCounts['C/D']++;
+  else gradeCounts['F']++;
+});
+
+const gradeCtx = document.getElementById('gradeChart').getContext('2d');
+new Chart(gradeCtx, {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(gradeCounts),
+    datasets: [{
+      data: Object.values(gradeCounts),
+      backgroundColor: [
+        'rgba(16, 185, 129, 0.8)',
+        'rgba(59, 130, 246, 0.8)',
+        'rgba(245, 158, 11, 0.8)',
+        'rgba(239, 68, 68, 0.8)'
+      ],
+      borderWidth: 0
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { color: '#94a3b8', boxWidth: 12, padding: 16 }
+      }
+    }
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

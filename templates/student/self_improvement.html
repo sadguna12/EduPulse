@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import student_nav %}
+{% block title %}Self-Improvement & Goals{% endblock %}
+{% block page_title %}Self-Improvement & Target Tracking{% endblock %}
+{% block nav %}{{ student_nav() }}{% endblock %}
+
+{% block content %}
+<!-- Goals Stat Grid -->
+{% set achieved_goals = goals | selectattr('is_achieved', 'equalto', true) | list | length %}
+{% set total_goals = goals|length %}
+{% set goal_rate = ((achieved_goals / total_goals * 100) if total_goals > 0 else 0) | round(0) | int %}
+
+<div class="stat-grid" style="margin-bottom:24px;">
+  <div class="stat-card blue">
+    <div class="stat-icon blue">🎯</div>
+    <div class="stat-value">{{ total_goals }}</div>
+    <div class="stat-label">Active & Set Goals</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon green">🏆</div>
+    <div class="stat-value">{{ achieved_goals }}</div>
+    <div class="stat-label">Goals Achieved</div>
+    <div class="stat-change positive">{{ goal_rate }}% Success Rate</div>
+  </div>
+  <div class="stat-card purple">
+    <div class="stat-icon purple">✅</div>
+    <div class="stat-value">{{ completed_tasks }} / {{ total_tasks }}</div>
+    <div class="stat-label">Tasks Completed</div>
+    <div class="stat-change positive">Study Tasks</div>
+  </div>
+  <div class="stat-card pink">
+    <div class="stat-icon pink">🔥</div>
+    <div class="stat-value">{{ total_goals - achieved_goals }}</div>
+    <div class="stat-label">Milestones In Progress</div>
+    <div class="stat-change neutral">Keep Pushing</div>
+  </div>
+</div>
+
+<div class="grid-2" style="gap:24px; align-items:start; margin-bottom:24px;">
+  <!-- Set New Goal Card -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">➕ Set New Target Goal</div>
+        <div class="card-subtitle">Define measurable academic targets with deadlines</div>
+      </div>
+    </div>
+    <form method="POST" action="{{ url_for('student.self_improvement') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add_goal">
+
+      <div class="form-group">
+        <label class="form-label">Goal Title *</label>
+        <input type="text" name="title" class="form-control" placeholder="e.g., Score 85% in Internal Assessment 2" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Action Plan / Description</label>
+        <textarea name="description" class="form-control" rows="3" placeholder="Outline specific steps (e.g., solve past 3 years question papers, attend revision lectures)..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Target Completion Date</label>
+        <input type="date" name="target_date" class="form-control">
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">
+        Create Goal 🎯
+      </button>
+    </form>
+  </div>
+
+  <!-- Best Practices Checklist -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">💡 High-Impact Study Habits</div>
+        <div class="card-subtitle">Techniques proven to maximize academic retention</div>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <span style="font-size:1.4rem;">⏱️</span>
+        <div>
+          <div style="font-weight:600; color:var(--text-primary); font-size:0.95rem;">Pomodoro Technique</div>
+          <div style="font-size:0.85rem; color:var(--text-secondary); line-height:1.4;">
+            Study for 25 minutes of deep focus, followed by a 5-minute break. After 4 blocks, take a longer 20-minute rest.
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <span style="font-size:1.4rem;">📝</span>
+        <div>
+          <div style="font-weight:600; color:var(--text-primary); font-size:0.95rem;">Feynman Technique</div>
+          <div style="font-size:0.85rem; color:var(--text-secondary); line-height:1.4;">
+            Explain a complex engineering or mathematical concept in simple words as if teaching someone with zero background.
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:12px; align-items:flex-start;">
+        <span style="font-size:1.4rem;">💤</span>
+        <div>
+          <div style="font-weight:600; color:var(--text-primary); font-size:0.95rem;">Memory Consolidation</div>
+          <div style="font-size:0.85rem; color:var(--text-secondary); line-height:1.4;">
+            Aim for 7-8 hours of sleep before examinations. Memory consolidation occurs primarily during slow-wave and REM sleep cycles.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Active Goals Tracker -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">🎯 My Goal Progression Trackers ({{ goals|length }})</div>
+      <div class="card-subtitle">Update your progress percentages as you advance</div>
+    </div>
+  </div>
+
+  {% if goals %}
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    {% for g in goals %}
+    <div style="background:var(--bg-elevated); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:20px; border-left:4px solid {{ 'var(--accent-green)' if g.is_achieved else 'var(--accent-blue)' }};">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+        <div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <h4 style="font-size:1.1rem; font-weight:600; color:var(--text-primary); margin:0;">
+              {{ g.title }}
+            </h4>
+            {% if g.is_achieved %}
+            <span class="badge badge-success">✓ Achieved!</span>
+            {% endif %}
+          </div>
+          {% if g.description %}
+          <p style="font-size:0.875rem; color:var(--text-secondary); margin:6px 0 0 0; line-height:1.5;">
+            {{ g.description }}
+          </p>
+          {% endif %}
+        </div>
+        <div style="text-align:right;">
+          <span style="font-size:1.4rem; font-weight:700; color:{{ 'var(--accent-green)' if g.progress_percent >= 100 else 'var(--accent-blue)' }};">
+            {{ g.progress_percent }}%
+          </span>
+          {% if g.target_date %}
+          <div class="text-xs text-muted" style="margin-top:4px;">
+            Target: {{ g.target_date.strftime('%d %b %Y') }}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Update Progress Slider Form -->
+      <form method="POST" action="{{ url_for('student.self_improvement') }}" style="display:flex; align-items:center; gap:16px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-color);">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="update_goal">
+        <input type="hidden" name="goal_id" value="{{ g.id }}">
+
+        <span style="font-size:0.8rem; color:var(--text-muted); min-width:80px;">Adjust %:</span>
+        <input type="range" name="progress" min="0" max="100" value="{{ g.progress_percent }}" style="flex:1; accent-color:var(--accent-blue);" oninput="this.nextElementSibling.innerText = this.value + '%'">
+        <span style="font-weight:700; font-size:0.85rem; width:45px; text-align:right;">{{ g.progress_percent }}%</span>
+        <button type="submit" class="btn btn-secondary btn-sm">Save Update</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">🎯</div>
+    <div class="empty-title">No goals created yet</div>
+    <div class="empty-text">Setting clear academic targets helps students achieve up to 25% higher performance outcomes!</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

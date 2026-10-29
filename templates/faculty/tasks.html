@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% from 'macros/nav.html' import faculty_nav %}
+{% block title %}Tasks & Alerts{% endblock %}
+{% block page_title %}Tasks & Academic Alerts{% endblock %}
+{% block nav %}{{ faculty_nav() }}{% endblock %}
+
+{% block content %}
+<div class="grid-2" style="gap:20px; align-items:start;">
+  <!-- Assign Task -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">➕ Assign Task to Student</div>
+    </div>
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add">
+      <div class="form-group">
+        <label class="form-label">Student *</label>
+        <select name="student_id" class="form-control" required>
+          <option value="">— Select Student —</option>
+          {% for s in students %}<option value="{{ s.id }}">{{ s.name }} ({{ s.roll_number }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Task Title *</label>
+        <input type="text" name="title" class="form-control" placeholder="Study chapter 5..." required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="3" placeholder="Detailed task description..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Subject</label>
+          <select name="subject_id" class="form-control">
+            <option value="">— None —</option>
+            {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority</label>
+          <select name="priority" class="form-control">
+            <option value="high">🔴 High</option>
+            <option value="medium" selected>🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Due Date</label>
+        <input type="date" name="due_date" class="form-control">
+      </div>
+      <button type="submit" class="btn btn-primary w-full" style="width:100%; justify-content:center;">Assign Task</button>
+    </form>
+  </div>
+
+  <!-- Assigned Tasks -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">📋 My Assigned Tasks ({{ tasks|length }})</div>
+    </div>
+    {% if tasks %}
+    <div style="display:flex; flex-direction:column; gap:10px; max-height:500px; overflow-y:auto;">
+      {% for t in tasks %}
+      <div style="padding:12px 14px; background:var(--bg-elevated); border-radius:var(--radius-md); border-left:3px solid {{ 'var(--accent-red)' if t.priority == 'high' else ('var(--accent-orange)' if t.priority == 'medium' else 'var(--accent-green)') }};">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <div style="font-weight:600; color:var(--text-primary); font-size:0.875rem;">{{ t.title }}</div>
+          <span class="badge {{ 'badge-success' if t.is_completed else ('badge-danger' if t.priority == 'high' else 'badge-warning') }}">
+            {{ 'Done' if t.is_completed else t.priority }}
+          </span>
+        </div>
+        <div class="text-xs text-muted">
+          👤 {{ t.student.name if t.student else '—' }} • {{ t.subject.name if t.subject else 'General' }}
+          {% if t.due_date %} • Due: {{ t.due_date.strftime('%d %b') }}{% endif %}
+        </div>
+        {% if t.description %}
+        <div class="text-sm text-secondary" style="margin-top:4px;">{{ t.description[:100] }}{{ '...' if t.description|length > 100 else '' }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">✅</div>
+      <div class="empty-title">No tasks assigned yet</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

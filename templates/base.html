@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="EduPulse — AI-powered Student Academic Performance Prediction System">
+  <title>{% block title %}EduPulse{% endblock %} | EduPulse</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+  {% block head %}{% endblock %}
+</head>
+<body class="{{ 'role-' + current_user.role if current_user.is_authenticated else '' }}">
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="alert-container" id="alertContainer">
+  {% for category, message in messages %}
+  <div class="alert alert-{{ category }}" role="alert">
+    <span>{% if category == 'success' %}✅{% elif category == 'danger' %}❌{% elif category == 'warning' %}⚠️{% else %}ℹ️{% endif %}</span>
+    <span>{{ message }}</span>
+    <button class="alert-close" onclick="this.parentElement.remove()" aria-label="Close">✕</button>
+  </div>
+  {% endfor %}
+</div>
+<script>
+  // Auto-dismiss alerts
+  setTimeout(() => {
+    const container = document.getElementById('alertContainer');
+    if (container) container.style.display = 'none';
+  }, 6000);
+</script>
+{% endif %}
+{% endwith %}
+
+{% if current_user.is_authenticated %}
+<div class="app-wrapper">
+  <!-- Sidebar Overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <a href="{{ url_for(current_user.role + '.dashboard') }}" class="brand-logo" style="text-decoration:none;">
+        <div class="brand-icon">🎓</div>
+        <div>
+          <div class="brand-name">EduPulse</div>
+          <div class="brand-tagline">Academic Intelligence</div>
+        </div>
+      </a>
+    </div>
+
+    <!-- User Card -->
+    {% if current_user.role == 'admin' and current_user.admin %}
+    {% set display_name = current_user.admin.name %}
+    {% elif current_user.role == 'faculty' and current_user.faculty %}
+    {% set display_name = current_user.faculty.name %}
+    {% elif current_user.role == 'student' and current_user.student %}
+    {% set display_name = current_user.student.name %}
+    {% else %}
+    {% set display_name = current_user.unique_id %}
+    {% endif %}
+    <div class="sidebar-user flex items-center gap-2">
+      <div class="user-avatar">{{ display_name[0] if display_name else '?' }}</div>
+      <div class="user-info">
+        <div class="user-name">{{ display_name }}</div>
+        <div class="user-role">{{ current_user.role | capitalize }}</div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+      {% block nav %}{% endblock %}
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">☰</button>
+        <div>
+          <div class="page-title">{% block page_title %}Dashboard{% endblock %}</div>
+        </div>
+      </div>
+      <div class="topbar-right" style="display:flex; align-items:center; gap:12px;">
+        {% block topbar_actions %}{% endblock %}
+        
+        <!-- Profile Dropdown Menu -->
+        <div class="profile-dropdown-wrapper" style="position:relative;">
+          <button type="button" class="profile-btn" onclick="toggleProfileMenu(event)" id="profileBtn" style="display:flex; align-items:center; gap:8px; background:var(--bg-elevated); border:1px solid var(--border-color); border-radius:999px; padding:4px 12px 4px 6px; cursor:pointer; color:var(--text-primary);">
+            <div class="user-avatar" style="width:30px; height:30px; font-size:0.8rem; border-radius:50%; background:linear-gradient(135deg, var(--brand-500), var(--accent-purple)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;">{{ display_name[0] if display_name else '?' }}</div>
+            <span style="font-size:0.85rem; font-weight:600; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ display_name }}</span>
+            <span style="font-size:0.7rem; color:var(--text-muted);">▾</span>
+          </button>
+
+          <div class="profile-menu" id="profileMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); width:230px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); box-shadow:var(--shadow-xl); padding:8px; z-index:1000;">
+            <div style="padding:8px 12px; border-bottom:1px solid var(--border-color); margin-bottom:6px;">
+              <div style="font-weight:700; font-size:0.9rem; color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">{{ display_name }}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+                {{ current_user.unique_id }} • <span class="badge badge-{{ 'warning' if current_user.role == 'admin' else ('purple' if current_user.role == 'faculty' else 'primary') }}" style="padding:1px 6px; font-size:0.65rem;">{{ current_user.role | capitalize }}</span>
+              </div>
+            </div>
+            <a href="{{ url_for('auth.profile') }}" class="dropdown-item" style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:var(--radius-md); text-decoration:none; color:var(--text-secondary); font-size:0.875rem;">
+              <span>👤</span> View Profile
+            </a>
+            <a href="{{ url_for('auth.profile') }}" class="dropdown-item" style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:var(--radius-md); text-decoration:none; color:var(--text-secondary); font-size:0.875rem;">
+              <span>✏️</span> Edit Profile
+            </a>
+            <a href="{{ url_for('auth.change_password') }}" class="dropdown-item" style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:var(--radius-md); text-decoration:none; color:var(--text-secondary); font-size:0.875rem;">
+              <span>🔑</span> Change Password
+            </a>
+            <div style="height:1px; background:var(--border-color); margin:6px 0;"></div>
+            <a href="{{ url_for('auth.logout') }}" class="dropdown-item" style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:var(--radius-md); text-decoration:none; color:var(--accent-red); font-size:0.875rem;">
+              <span>🚪</span> Sign Out
+            </a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main class="page-content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+{% else %}
+{% block auth_content %}{% endblock %}
+{% endif %}
+
+<script>
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('open');
+}
+
+function toggleProfileMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('profileMenu');
+  if (menu) {
+    menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+  }
+}
+
+// Close menus when clicking outside
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('profileMenu');
+  const btn = document.getElementById('profileBtn');
+  if (menu && menu.style.display === 'block' && (!btn || !btn.contains(e.target)) && !menu.contains(e.target)) {
+    menu.style.display = 'none';
+  }
+});
+
+// Close sidebar and profile on escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const menu = document.getElementById('profileMenu');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+    if (menu) menu.style.display = 'none';
+  }
+});
+
+// Active nav item highlighting
+document.addEventListener('DOMContentLoaded', () => {
+  const currentPath = window.location.pathname;
+  document.querySelectorAll('.nav-item[href]').forEach(item => {
+    if (item.getAttribute('href') === currentPath ||
+        (item.getAttribute('href') !== '/' && currentPath.startsWith(item.getAttribute('href')))) {
+      item.classList.add('active');
+    }
+  });
+});
+
+// Modal helpers
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>
