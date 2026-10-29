@@ -1,4 +1,5 @@
 import os
+import tempfile
 from flask import Flask
 import sqlite3
 from sqlalchemy import event
@@ -48,9 +49,26 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
 
-    # Ensure upload and model directories exist
-    os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
-    os.makedirs(app.config.get('MODEL_FOLDER', 'ml_models'), exist_ok=True)
+    # Ensure upload and model directories exist on writable paths
+    upload_folder = app.config.get('UPLOAD_FOLDER')
+    if not upload_folder:
+        upload_folder = os.path.join(tempfile.gettempdir(), 'edupulse_uploads')
+        app.config['UPLOAD_FOLDER'] = upload_folder
+
+    try:
+        os.makedirs(upload_folder, exist_ok=True)
+    except OSError:
+        # Fallback to temp directory if configured directory is read-only (e.g. Vercel)
+        upload_folder = os.path.join(tempfile.gettempdir(), 'edupulse_uploads')
+        os.makedirs(upload_folder, exist_ok=True)
+        app.config['UPLOAD_FOLDER'] = upload_folder
+
+    model_folder = app.config.get('MODEL_FOLDER')
+    if model_folder:
+        try:
+            os.makedirs(model_folder, exist_ok=True)
+        except OSError:
+            pass
 
     # Initialize extensions
     db.init_app(app)
