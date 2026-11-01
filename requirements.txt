@@ -12,3 +12,7 @@ joblib==1.4.2
 reportlab==4.2.2
 xlsxwriter==3.2.0
 python-dotenv==1.0.1
+# MySQL production driver (pure-Python, no native libs required — works on Vercel)
+PyMySQL==1.1.1
+# Required by PyMySQL for MySQL 8+ caching_sha2_password authentication
+cryptography==42.0.8
