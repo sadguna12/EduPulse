@@ -1,38 +1,8 @@
 {% extends 'base.html' %}
+{% from 'macros/nav.html' import admin_nav %}
 {% block title %}Admin Dashboard{% endblock %}
 {% block page_title %}Admin Dashboard{% endblock %}
-
-{% block nav %}
-<span class="nav-group-label">Overview</span>
-<a href="{{ url_for('admin.dashboard') }}" class="nav-item">
-  <span class="nav-icon">📊</span> Overview
-</a>
-
-<span class="nav-group-label">Management</span>
-<a href="{{ url_for('admin.departments') }}" class="nav-item">
-  <span class="nav-icon">🏛️</span> Departments & Sections
-</a>
-<a href="{{ url_for('admin.students') }}" class="nav-item">
-  <span class="nav-icon">🎓</span> Student Management
-</a>
-<a href="{{ url_for('admin.faculty') }}" class="nav-item">
-  <span class="nav-icon">👨‍🏫</span> Faculty Management
-</a>
-<a href="{{ url_for('admin.subjects') }}" class="nav-item">
-  <span class="nav-icon">📚</span> Subjects & Academics
-</a>
-
-<span class="nav-group-label">Data & Analytics</span>
-<a href="{{ url_for('admin.dataset') }}" class="nav-item">
-  <span class="nav-icon">📂</span> Dataset Management
-</a>
-<a href="{{ url_for('admin.analytics') }}" class="nav-item">
-  <span class="nav-icon">📈</span> Institution Analytics
-</a>
-<a href="{{ url_for('admin.settings') }}" class="nav-item">
-  <span class="nav-icon">⚙️</span> Settings
-</a>
-{% endblock %}
+{% block nav %}{{ admin_nav() }}{% endblock %}
 
 {% block content %}
 <!-- Stats Grid -->
@@ -53,7 +23,7 @@
     <div class="stat-label">Departments</div>
   </div>
   <div class="stat-card orange">
-    <div class="stat-icon orange">📚</div>
+    <div class="stvar(--warning)">📚</div>
     <div class="stat-value">{{ stats.total_subjects }}</div>
     <div class="stat-label">Active Subjects</div>
   </div>
@@ -69,7 +39,7 @@
   </div>
 </div>
 
-<div class="grid-2" style="gap:20px; margin-top:0;">
+<div class="grid-2" style="gap:20px;margin-top:0;">
   <!-- Department Overview -->
   <div class="card">
     <div class="card-header">
@@ -115,7 +85,7 @@
         <tbody>
           {% for s in recent_students %}
           <tr>
-            <td style="font-weight:500; color:var(--text-primary);">{{ s.name }}</td>
+            <td style="font-weight:500;color:var(--bg-surface2)xt-primary);">{{ s.name }}</td>
             <td><span class="badge badge-primary">{{ s.roll_number }}</span></td>
             <td class="text-sm">{{ s.department.code if s.department else '—' }}</td>
             <td class="text-sm">{{ s.current_semester }}</td>
@@ -135,17 +105,17 @@
 </div>
 
 <!-- Quick Actions -->
-<div class="card mt-4" style="margin-top:20px;">
+<div class="card" style="margin-top:20px;">
   <div class="card-header">
     <div class="card-title">⚡ Quick Actions</div>
   </div>
-  <div style="display:flex; flex-wrap:wrap; gap:10px;">
-    <a href="{{ url_for('admin.students') }}?action=add" class="btn btn-primary">➕ Add Student</a>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;">
+    <a href="{{ url_for('admin.students') }}" class="btn btn-primary">➕ Add Student</a>
     <a href="{{ url_for('admin.faculty') }}" class="btn btn-secondary">👨‍🏫 Add Faculty</a>
-    <a href="{{ url_for('admin.departments') }}" class="btn btn-secondary">🏛️ Manage Departments</a>
+    <a href="{{ url_for('admin.departments') }}" class="btn btn-secondary">🏛️ Departments</a>
     <a href="{{ url_for('admin.dataset') }}" class="btn btn-secondary">📂 Import Data</a>
     <a href="{{ url_for('admin.export_students') }}" class="btn btn-secondary">📥 Export Students</a>
-    <a href="{{ url_for('admin.analytics') }}" class="btn btn-secondary">📈 View Analytics</a>
+    <a href="{{ url_for('admin.analytics') }}" class="btn btn-secondary">📈 Analytics</a>
   </div>
 </div>
 {% endblock %}
@@ -153,32 +123,32 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-{% if dept_data %}
-const deptCtx = document.getElementById('deptChart').getContext('2d');
-new Chart(deptCtx, {
-  type: 'bar',
-  data: {
-    labels: {{ dept_data | map(attribute='code') | list | tojson }},
+  {% if dept_data %}
+  const deptCtx = document.getElementById('deptChart').getContext('2d');
+  new Chart(deptCtx, {
+    type: 'bar',
+    data: {
+      labels: {{ dept_data | map(attribute = 'code') | list | tojson }},
     datasets: [{
       label: 'Students',
-      data: {{ dept_data | map(attribute='count') | list | tojson }},
-      backgroundColor: [
-        'rgba(59,130,246,0.7)','rgba(139,92,246,0.7)','rgba(16,185,129,0.7)',
-        'rgba(245,158,11,0.7)','rgba(236,72,153,0.7)','rgba(6,182,212,0.7)'
-      ],
-      borderRadius: 8,
-      borderSkipped: false,
+      data: {{ dept_data | map(attribute = 'count') | list | tojson }},
+    backgroundColor: [
+      'rgba(115,87,232,0.75)', 'rgba(115,87,232,0.60)', 'rgba(115,87,232,0.50)',
+      'rgba(115,87,232,0.40)', 'rgba(115,87,232,0.35)', 'rgba(115,87,232,0.25)'
+    ],
+    borderRadius: 8,
+    borderSkipped: false,
     }]
   },
-  options: {
+    options: {
     responsive: true, maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: {
-      x: { grid: { color: 'rgba(148,163,184,0.08)' }, ticks: { color: '#94a3b8' } },
-      y: { grid: { color: 'rgba(148,163,184,0.08)' }, ticks: { color: '#94a3b8' } }
+      x: { grid: { color: 'rgba(115,87,232,0.07)' }, ticks: { color: '#77758A' } },
+      y: { grid: { color: 'rgba(115,87,232,0.07)' }, ticks: { color: '#77758A' } }
     }
   }
 });
-{% endif %}
+  {% endif %}
 </script>
 {% endblock %}

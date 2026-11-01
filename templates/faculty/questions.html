@@ -31,14 +31,14 @@
   {% if questions %}
   <div style="display:flex; flex-direction:column; gap:12px;">
     {% for q in questions %}
-    <div style="padding:14px 16px; background:var(--bg-elevated); border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
+    <div style="padding:14px 16px; background:var(--bg-surface2); border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
       <div style="display:flex; justify-content:space-between; align-items:start; gap:12px;">
         <div style="flex:1;">
           <div style="font-weight:500; color:var(--text-primary); margin-bottom:8px;">{{ q.question_text }}</div>
           {% if q.option_a %}
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; font-size:0.8rem;">
             {% for letter, opt in [('A', q.option_a), ('B', q.option_b), ('C', q.option_c), ('D', q.option_d)] %}
-            <span style="color:{{ 'var(--accent-green)' if letter == q.correct_answer else 'var(--text-muted)' }}; font-weight:{{ '600' if letter == q.correct_answer else '400' }};">
+            <span style="color:{{ 'var(--success)' if letter == q.correct_answer else 'var(--text-muted)' }}; font-weight:{{ '600' if letter == q.correct_answer else '400' }};">
               {{ letter }}) {{ opt }}
             </span>
             {% endfor %}

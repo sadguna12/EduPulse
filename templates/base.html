@@ -23,7 +23,6 @@
   {% endfor %}
 </div>
 <script>
-  // Auto-dismiss alerts
   setTimeout(() => {
     const container = document.getElementById('alertContainer');
     if (container) container.style.display = 'none';
@@ -40,7 +39,7 @@
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <a href="{{ url_for(current_user.role + '.dashboard') }}" class="brand-logo" style="text-decoration:none;">
+      <a href="{{ url_for(current_user.role + '.dashboard') }}" class="brand-logo">
         <div class="brand-icon">🎓</div>
         <div>
           <div class="brand-name">EduPulse</div>
@@ -59,7 +58,7 @@
     {% else %}
     {% set display_name = current_user.unique_id %}
     {% endif %}
-    <div class="sidebar-user flex items-center gap-2">
+    <div class="sidebar-user">
       <div class="user-avatar">{{ display_name[0] if display_name else '?' }}</div>
       <div class="user-info">
         <div class="user-name">{{ display_name }}</div>
@@ -83,35 +82,32 @@
           <div class="page-title">{% block page_title %}Dashboard{% endblock %}</div>
         </div>
       </div>
-      <div class="topbar-right" style="display:flex; align-items:center; gap:12px;">
+      <div class="topbar-right">
         {% block topbar_actions %}{% endblock %}
-        
-        <!-- Profile Dropdown Menu -->
-        <div class="profile-dropdown-wrapper" style="position:relative;">
-          <button type="button" class="profile-btn" onclick="toggleProfileMenu(event)" id="profileBtn" style="display:flex; align-items:center; gap:8px; background:var(--bg-elevated); border:1px solid var(--border-color); border-radius:999px; padding:4px 12px 4px 6px; cursor:pointer; color:var(--text-primary);">
-            <div class="user-avatar" style="width:30px; height:30px; font-size:0.8rem; border-radius:50%; background:linear-gradient(135deg, var(--brand-500), var(--accent-purple)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;">{{ display_name[0] if display_name else '?' }}</div>
-            <span style="font-size:0.85rem; font-weight:600; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ display_name }}</span>
-            <span style="font-size:0.7rem; color:var(--text-muted);">▾</span>
+
+        <!-- Profile Dropdown -->
+        <div class="profile-dropdown-wrapper">
+          <button type="button" class="profile-btn" onclick="toggleProfileMenu(event)" id="profileBtn">
+            <div class="user-avatar" style="width:30px;height:30px;font-size:0.78rem;">{{ display_name[0] if display_name else '?' }}</div>
+            <span style="font-size:0.85rem;font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ display_name }}</span>
+            <span style="font-size:0.65rem;color:var(--text-muted);margin-left:2px;">▾</span>
           </button>
 
-          <div class="profile-menu" id="profileMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); width:230px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); box-shadow:var(--shadow-xl); padding:8px; z-index:1000;">
-            <div style="padding:8px 12px; border-bottom:1px solid var(--border-color); margin-bottom:6px;">
-              <div style="font-weight:700; font-size:0.9rem; color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">{{ display_name }}</div>
-              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
-                {{ current_user.unique_id }} • <span class="badge badge-{{ 'warning' if current_user.role == 'admin' else ('purple' if current_user.role == 'faculty' else 'primary') }}" style="padding:1px 6px; font-size:0.65rem;">{{ current_user.role | capitalize }}</span>
+          <div class="profile-menu" id="profileMenu" style="display:none;">
+            <div style="padding:8px 12px;border-bottom:1px solid var(--border-light);margin-bottom:4px;">
+              <div style="font-weight:700;font-size:0.9rem;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ display_name }}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">
+                {{ current_user.unique_id }} · <span class="badge badge-{{ 'warning' if current_user.role == 'admin' else ('purple' if current_user.role == 'faculty' else 'primary') }}" style="padding:1px 6px;font-size:0.62rem;">{{ current_user.role | capitalize }}</span>
               </div>
             </div>
-            <a href="{{ url_for('auth.profile') }}" class="dropdown-item" style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:var(--radius-md); text-decoration:none; color:var(--text-secondary); font-size:0.875rem;">
+            <a href="{{ url_for('auth.profile') }}" class="dropdown-item">
               <span>👤</span> View Profile
             </a>
-            <a href="{{ url_for('auth.profile') }}" class="dropdown-item" style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:var(--radius-md); text-decoration:none; color:var(--text-secondary); font-size:0.875rem;">
-              <span>✏️</span> Edit Profile
-            </a>
-            <a href="{{ url_for('auth.change_password') }}" class="dropdown-item" style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:var(--radius-md); text-decoration:none; color:var(--text-secondary); font-size:0.875rem;">
+            <a href="{{ url_for('auth.change_password') }}" class="dropdown-item">
               <span>🔑</span> Change Password
             </a>
-            <div style="height:1px; background:var(--border-color); margin:6px 0;"></div>
-            <a href="{{ url_for('auth.logout') }}" class="dropdown-item" style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:var(--radius-md); text-decoration:none; color:var(--accent-red); font-size:0.875rem;">
+            <div class="divider"></div>
+            <a href="{{ url_for('auth.logout') }}" class="dropdown-item danger">
               <span>🚪</span> Sign Out
             </a>
           </div>

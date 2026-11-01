@@ -38,7 +38,7 @@
     {% if subjects %}
     <div style="display:flex; flex-direction:column; gap:10px;">
       {% for s in subjects %}
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg-elevated); border-radius:var(--radius-md);">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg-surface2); border-radius:var(--radius-md);">
         <div>
           <div style="font-weight:600; color:var(--text-primary); font-size:0.9rem;">{{ s.name }}</div>
           <div class="text-xs text-muted">{{ s.code }} • Semester {{ s.semester }} • {{ s.credits }} credits</div>
@@ -61,7 +61,7 @@
     {% if recent_exams %}
     <div style="display:flex; flex-direction:column; gap:8px;">
       {% for e in recent_exams %}
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--bg-elevated); border-radius:var(--radius-md);">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--bg-surface2); border-radius:var(--radius-md);">
         <div>
           <div style="font-weight:500; color:var(--text-primary); font-size:0.875rem;">{{ e.name }}</div>
           <div class="text-xs text-muted">{{ e.subject.name if e.subject else '—' }} • Max: {{ e.max_marks }}</div>

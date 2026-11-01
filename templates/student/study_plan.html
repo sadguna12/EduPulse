@@ -41,7 +41,7 @@
 <div style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.25); border-radius:var(--radius-lg); padding:16px 20px; margin-bottom:24px; display:flex; align-items:center; gap:16px;">
   <span style="font-size:1.8rem;">🎯</span>
   <div style="flex:1;">
-    <h4 style="font-size:0.95rem; font-weight:700; color:var(--accent-red); margin:0 0 4px 0;">Study Allocation Priority</h4>
+    <h4 style="font-size:0.95rem; font-weight:700; color:var(--danger); margin:0 0 4px 0;">Study Allocation Priority</h4>
     <p style="font-size:0.875rem; color:var(--text-secondary); margin:0;">
       Your performance data indicates that you should dedicate extra study slots to:
       <strong style="color:var(--text-primary);">{{ weak_subjects | join(', ') }}</strong>.
@@ -137,7 +137,7 @@
   {% if tasks %}
   <div style="display:flex; flex-direction:column; gap:12px;">
     {% for task in tasks %}
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px; background:var(--bg-elevated); border-radius:var(--radius-lg); border:1px solid var(--border-color); border-left:4px solid {{ 'var(--accent-red)' if task.priority == 'high' else ('var(--accent-orange)' if task.priority == 'medium' else 'var(--accent-green)') }}; opacity:{{ '0.65' if task.is_completed else '1' }};">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px; background:var(--bg-surface2); border-radius:var(--radius-lg); border:1px solid var(--border-default); border-left:4px solid {{ 'var(--danger)' if task.priority == 'high' else ('var(--warning)' if task.priority == 'medium' else 'var(--success)') }}; opacity:{{ '0.65' if task.is_completed else '1' }};">
       <div style="display:flex; align-items:flex-start; gap:14px; flex:1;">
         <form method="POST" action="{{ url_for('student.complete_task', task_id=task.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -160,7 +160,7 @@
             <span>📅 Due: {{ task.due_date.strftime('%d %b %Y') }}</span>
             {% endif %}
             {% if task.is_completed and task.completed_at %}
-            <span style="color:var(--accent-green);">✓ Completed on {{ task.completed_at.strftime('%d %b %Y') }}</span>
+            <span style="color:var(--success);">✓ Completed on {{ task.completed_at.strftime('%d %b %Y') }}</span>
             {% endif %}
           </div>
         </div>

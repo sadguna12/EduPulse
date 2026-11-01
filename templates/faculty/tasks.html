@@ -62,7 +62,7 @@
     {% if tasks %}
     <div style="display:flex; flex-direction:column; gap:10px; max-height:500px; overflow-y:auto;">
       {% for t in tasks %}
-      <div style="padding:12px 14px; background:var(--bg-elevated); border-radius:var(--radius-md); border-left:3px solid {{ 'var(--accent-red)' if t.priority == 'high' else ('var(--accent-orange)' if t.priority == 'medium' else 'var(--accent-green)') }};">
+      <div style="padding:12px 14px; background:var(--bg-surface2); border-radius:var(--radius-md); border-left:3px solid {{ 'var(--danger)' if t.priority == 'high' else ('var(--warning)' if t.priority == 'medium' else 'var(--success)') }};">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <div style="font-weight:600; color:var(--text-primary); font-size:0.875rem;">{{ t.title }}</div>
           <span class="badge {{ 'badge-success' if t.is_completed else ('badge-danger' if t.priority == 'high' else 'badge-warning') }}">

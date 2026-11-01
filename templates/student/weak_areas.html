@@ -7,10 +7,10 @@
 {% block content %}
 <div class="grid-2" style="gap:24px; margin-bottom:24px;">
   <!-- Weak Areas Section -->
-  <div class="card" style="border-top: 4px solid var(--accent-red);">
+  <div class="card" style="border-top: 4px solid var(--danger);">
     <div class="card-header">
       <div>
-        <div class="card-title" style="color:var(--accent-red); display:flex; align-items:center; gap:8px;">
+        <div class="card-title" style="color:var(--danger); display:flex; align-items:center; gap:8px;">
           <span>⚠️</span> Areas Requiring Attention (&lt;60%)
         </div>
         <div class="card-subtitle">Subjects flagged for academic intervention</div>
@@ -21,7 +21,7 @@
     {% if weak_areas %}
     <div style="display:flex; flex-direction:column; gap:16px;">
       {% for w in weak_areas %}
-      <div style="background:var(--bg-elevated); border:1px solid rgba(239, 68, 68, 0.2); border-radius:var(--radius-lg); padding:16px;">
+      <div style="background:var(--bg-surface2); border:1px solid rgba(239, 68, 68, 0.2); border-radius:var(--radius-lg); padding:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <h4 style="font-size:1.05rem; font-weight:600; color:var(--text-primary); margin:0;">
             {{ w.subject_name }}
@@ -50,7 +50,7 @@
     </div>
     {% else %}
     <div class="empty-state" style="padding:40px 20px;">
-      <div class="empty-icon" style="color:var(--accent-green);">🎉</div>
+      <div class="empty-icon" style="color:var(--success);">🎉</div>
       <div class="empty-title">No critical weaknesses identified!</div>
       <div class="empty-text">All your recorded subject scores are currently above 60%. Keep up the solid performance!</div>
     </div>
@@ -58,10 +58,10 @@
   </div>
 
   <!-- Strong Areas Section -->
-  <div class="card" style="border-top: 4px solid var(--accent-green);">
+  <div class="card" style="border-top: 4px solid var(--success);">
     <div class="card-header">
       <div>
-        <div class="card-title" style="color:var(--accent-green); display:flex; align-items:center; gap:8px;">
+        <div class="card-title" style="color:var(--success); display:flex; align-items:center; gap:8px;">
           <span>🌟</span> Key Strengths & Masteries (≥75%)
         </div>
         <div class="card-subtitle">Subjects where you demonstrate strong proficiency</div>
@@ -72,7 +72,7 @@
     {% if strong_areas %}
     <div style="display:flex; flex-direction:column; gap:16px;">
       {% for s in strong_areas %}
-      <div style="background:var(--bg-elevated); border:1px solid rgba(16, 185, 129, 0.2); border-radius:var(--radius-lg); padding:16px;">
+      <div style="background:var(--bg-surface2); border:1px solid rgba(16, 185, 129, 0.2); border-radius:var(--radius-lg); padding:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <h4 style="font-size:1.05rem; font-weight:600; color:var(--text-primary); margin:0;">
             {{ s.subject_name }}
@@ -90,7 +90,7 @@
           <span style="font-size:0.825rem; color:var(--text-muted);">
             Status: Distinction Grade Retained
           </span>
-          <span class="text-xs" style="color:var(--accent-green); font-weight:600;">
+          <span class="text-xs" style="color:var(--success); font-weight:600;">
             Excellent Concept Grasp ✓
           </span>
         </div>
@@ -117,7 +117,7 @@
   </div>
 
   <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:20px;">
-    <div style="background:var(--bg-elevated); padding:20px; border-radius:var(--radius-lg); border:1px solid var(--border-color);">
+    <div style="background:var(--bg-surface2); padding:20px; border-radius:var(--radius-lg); border:1px solid var(--border-default);">
       <div style="font-size:2rem; margin-bottom:12px;">🔄</div>
       <h4 style="font-size:1rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">Spaced Repetition</h4>
       <p style="font-size:0.875rem; color:var(--text-secondary); line-height:1.5;">
@@ -125,7 +125,7 @@
       </p>
     </div>
 
-    <div style="background:var(--bg-elevated); padding:20px; border-radius:var(--radius-lg); border:1px solid var(--border-color);">
+    <div style="background:var(--bg-surface2); padding:20px; border-radius:var(--radius-lg); border:1px solid var(--border-default);">
       <div style="font-size:2rem; margin-bottom:12px;">❓</div>
       <h4 style="font-size:1rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">Active Retrieval Practice</h4>
       <p style="font-size:0.875rem; color:var(--text-secondary); line-height:1.5;">
@@ -133,7 +133,7 @@
       </p>
     </div>
 
-    <div style="background:var(--bg-elevated); padding:20px; border-radius:var(--radius-lg); border:1px solid var(--border-color);">
+    <div style="background:var(--bg-surface2); padding:20px; border-radius:var(--radius-lg); border:1px solid var(--border-default);">
       <div style="font-size:2rem; margin-bottom:12px;">👨‍🏫</div>
       <h4 style="font-size:1rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">Faculty Consultation</h4>
       <p style="font-size:0.875rem; color:var(--text-secondary); line-height:1.5;">

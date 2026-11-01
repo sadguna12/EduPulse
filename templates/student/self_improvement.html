@@ -124,7 +124,7 @@
   {% if goals %}
   <div style="display:flex; flex-direction:column; gap:16px;">
     {% for g in goals %}
-    <div style="background:var(--bg-elevated); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:20px; border-left:4px solid {{ 'var(--accent-green)' if g.is_achieved else 'var(--accent-blue)' }};">
+    <div style="background:var(--bg-surface2); border:1px solid var(--border-default); border-radius:var(--radius-lg); padding:20px; border-left:4px solid {{ 'var(--success)' if g.is_achieved else 'var(--accent-violet)' }};">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
         <div>
           <div style="display:flex; align-items:center; gap:8px;">
@@ -142,7 +142,7 @@
           {% endif %}
         </div>
         <div style="text-align:right;">
-          <span style="font-size:1.4rem; font-weight:700; color:{{ 'var(--accent-green)' if g.progress_percent >= 100 else 'var(--accent-blue)' }};">
+          <span style="font-size:1.4rem; font-weight:700; color:{{ 'var(--success)' if g.progress_percent >= 100 else 'var(--accent-violet)' }};">
             {{ g.progress_percent }}%
           </span>
           {% if g.target_date %}
@@ -154,13 +154,13 @@
       </div>
 
       <!-- Update Progress Slider Form -->
-      <form method="POST" action="{{ url_for('student.self_improvement') }}" style="display:flex; align-items:center; gap:16px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-color);">
+      <form method="POST" action="{{ url_for('student.self_improvement') }}" style="display:flex; align-items:center; gap:16px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-default);">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="update_goal">
         <input type="hidden" name="goal_id" value="{{ g.id }}">
 
         <span style="font-size:0.8rem; color:var(--text-muted); min-width:80px;">Adjust %:</span>
-        <input type="range" name="progress" min="0" max="100" value="{{ g.progress_percent }}" style="flex:1; accent-color:var(--accent-blue);" oninput="this.nextElementSibling.innerText = this.value + '%'">
+        <input type="range" name="progress" min="0" max="100" value="{{ g.progress_percent }}" style="flex:1; accent-color:var(--accent-violet);" oninput="this.nextElementSibling.innerText = this.value + '%'">
         <span style="font-weight:700; font-size:0.85rem; width:45px; text-align:right;">{{ g.progress_percent }}%</span>
         <button type="submit" class="btn btn-secondary btn-sm">Save Update</button>
       </form>

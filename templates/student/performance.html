@@ -82,7 +82,7 @@
   {% if subject_data %}
   <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;">
     {% for s in subject_data %}
-    <div style="background:var(--bg-elevated); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:16px; display:flex; flex-direction:column; justify-content:space-between;">
+    <div style="background:var(--bg-surface2); border:1px solid var(--border-default); border-radius:var(--radius-lg); padding:16px; display:flex; flex-direction:column; justify-content:space-between;">
       <div>
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
           <h4 style="font-size:1rem; font-weight:600; color:var(--text-primary); margin:0;">{{ s.name }}</h4>
@@ -97,9 +97,9 @@
           <div class="progress-bar {{ 'green' if s.avg >= 75 else ('orange' if s.avg >= 50 else 'red') }}" style="width:{{ s.avg | round(0) | int }}%;"></div>
         </div>
       </div>
-      <div style="font-size:0.8rem; color:var(--text-muted); display:flex; justify-content:space-between; padding-top:8px; border-top:1px solid var(--border-color);">
+      <div style="font-size:0.8rem; color:var(--text-muted); display:flex; justify-content:space-between; padding-top:8px; border-top:1px solid var(--border-default);">
         <span>Tests: {{ s.exams|length }}</span>
-        <span style="color:{{ 'var(--accent-green)' if s.avg >= 75 else ('var(--accent-orange)' if s.avg >= 50 else 'var(--accent-red)') }};">
+        <span style="color:{{ 'var(--success)' if s.avg >= 75 else ('var(--warning)' if s.avg >= 50 else 'var(--danger)') }};">
           {{ 'Mastery' if s.avg >= 85 else ('Solid' if s.avg >= 70 else ('Average' if s.avg >= 50 else 'Critical Attention')) }}
         </span>
       </div>
@@ -219,11 +219,11 @@ new Chart(subCtx, {
         min: 0,
         max: 100,
         grid: { color: 'rgba(148, 163, 184, 0.1)' },
-        ticks: { color: '#94a3b8' }
+        ticks: { color: 'var(--text-secondary)' }
       },
       x: {
         grid: { color: 'rgba(148, 163, 184, 0.05)' },
-        ticks: { color: '#94a3b8' }
+        ticks: { color: 'var(--text-secondary)' }
       }
     }
   }
@@ -260,7 +260,7 @@ new Chart(gradeCtx, {
     plugins: {
       legend: {
         position: 'bottom',
-        labels: { color: '#94a3b8', boxWidth: 12, padding: 16 }
+        labels: { color: 'var(--text-secondary)', boxWidth: 12, padding: 16 }
       }
     }
   }

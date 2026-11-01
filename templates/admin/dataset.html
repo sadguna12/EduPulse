@@ -6,17 +6,21 @@
 
 {% block content %}
 <!-- Master Excel Workbook Section (Primary Workflow) -->
-<div class="card" style="margin-bottom:24px; border:2px solid var(--accent-blue); box-shadow:0 10px 25px -5px rgba(59, 130, 246, 0.15);">
-  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+<div class="card"
+  style="margin-bottom:24px;border:2px solid var(--primary-border);box-shadow:0 10px 25px -5px rgba(115,87,232,0.12);">
+  <div class="card-header"
+    style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
     <div>
       <div class="card-title" style="display:flex; align-items:center; gap:10px; font-size:1.25rem;">
         <span>📊</span> Unified Master Excel Dataset Import (Recommended)
       </div>
       <div class="card-subtitle">
-        Upload ONE Excel workbook containing all 7 worksheets (Departments, Students, Faculty, Subjects, Examinations, Marks, Attendance)
+        Upload ONE Excel workbook containing all 7 worksheets (Departments, Students, Faculty, Subjects, Examinations,
+        Marks, Attendance)
       </div>
     </div>
-    <a href="{{ url_for('admin.download_master_template') }}" class="btn btn-primary" id="downloadMasterBtn" style="display:flex; align-items:center; gap:8px;">
+    <a href="{{ url_for('admin.download_master_template') }}" class="btn btn-primary" id="downloadMasterBtn"
+      style="display:flex; align-items:center; gap:8px;">
       <span>📥</span> Download Master Excel Template (.xlsx)
     </a>
   </div>
@@ -24,8 +28,10 @@
   <div style="padding:4px 0;">
     <!-- If Master Inspection is active (Preview Mode) -->
     {% if master_inspection %}
-    <div style="background:var(--bg-elevated); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:20px; margin-bottom:20px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+    <div
+      style="background:var(--bg-surface2);border:1px solid var(--border-default);border-radius:var(--radius-lg);padding:20px;margin-bottom:20px;">
+      <div
+        style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
         <div>
           <span class="badge badge-purple" style="font-size:0.85rem;">📁 Staged Workbook: {{ master_filename }}</span>
           <h3 style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin:6px 0 0 0;">
@@ -50,9 +56,11 @@
 
       <!-- Validation Status Alerts -->
       {% if master_inspection.missing_dependencies %}
-      <div style="background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.35); border-left:4px solid var(--accent-orange); border-radius:var(--radius-md); padding:14px 16px; margin-bottom:16px;">
-        <div style="font-weight:700; color:var(--accent-orange); margin-bottom:6px; display:flex; align-items:center; gap:8px;">
-          <span>⚠️</span> Missing Cross-Sheet Dependencies Detected ({{ master_inspection.missing_dependencies|length }}):
+      <div
+        style="background:var(--warning-bg);border:1px solid var(--warning-border);border-left:4px solid var(--warning);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:16px;">
+        <div style="font-weight:700;color:var(--warning);margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+          <span>⚠️</span> Missing Cross-Sheet Dependencies Detected ({{ master_inspection.missing_dependencies|length
+          }}):
         </div>
         <ul style="margin:0; padding-left:20px; font-size:0.85rem; color:var(--text-secondary); line-height:1.5;">
           {% for dep in master_inspection.missing_dependencies[:10] %}
@@ -63,14 +71,16 @@
           {% endif %}
         </ul>
         <div class="text-xs text-muted" style="margin-top:8px;">
-          * Valid rows with existing dependencies will be imported safely; invalid rows will be reported in the error log.
+          * Valid rows with existing dependencies will be imported safely; invalid rows will be reported in the error
+          log.
         </div>
       </div>
       {% endif %}
 
       {% if master_inspection.validation_issues %}
-      <div style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); border-left:4px solid var(--accent-red); border-radius:var(--radius-md); padding:14px 16px; margin-bottom:16px;">
-        <div style="font-weight:700; color:var(--accent-red); margin-bottom:6px; display:flex; align-items:center; gap:8px;">
+      <div
+        style="background:var(--danger-bg);border:1px solid var(--danger-border);border-left:4px solid var(--danger);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:16px;">
+        <div style="font-weight:700;color:var(--danger);margin-bottom:6px;display:flex;align-items:center;gap:8px;">
           <span>⚠️</span> Row Validation Issues ({{ master_inspection.validation_issues|length }}):
         </div>
         <ul style="margin:0; padding-left:20px; font-size:0.85rem; color:var(--text-secondary); line-height:1.5;">
@@ -83,7 +93,8 @@
         </ul>
       </div>
       {% elif not master_inspection.missing_dependencies %}
-      <div style="background:rgba(16, 185, 129, 0.12); border:1px solid rgba(16, 185, 129, 0.3); border-left:4px solid var(--accent-green); border-radius:var(--radius-md); padding:12px 16px; margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+      <div
+        style="background:var(--success-bg);border:1px solid var(--success-border);border-left:4px solid var(--success);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
         <span style="font-size:1.4rem;">✅</span>
         <div style="font-size:0.9rem; color:var(--text-primary); font-weight:600;">
           All cross-sheet relationships verified! All 7 sheets are structurally valid and ready for atomic import.
@@ -120,9 +131,11 @@
         <div style="font-weight:700; font-size:0.95rem; color:var(--text-primary); margin-bottom:10px;">
           Inspect Sheet Data Samples (First 10 Rows):
         </div>
-        <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:12px;" id="masterPreviewTabs">
+        <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:12px;"
+          id="masterPreviewTabs">
           {% for cat, sheet_label in master_inspection.detected_sheets.items() %}
-          <button type="button" class="btn btn-secondary btn-sm master-tab-btn" onclick="showMasterSample('{{ cat }}')" id="mtab-{{ cat }}">
+          <button type="button" class="btn btn-secondary btn-sm master-tab-btn" onclick="showMasterSample('{{ cat }}')"
+            id="mtab-{{ cat }}">
             {{ cat | capitalize }} ({{ master_inspection.summary.row_counts.get(cat, 0) }})
           </button>
           {% endfor %}
@@ -131,7 +144,7 @@
         {% for cat, rows in master_inspection.samples.items() %}
         <div class="master-sample-container" id="msample-{{ cat }}" style="display:none;">
           {% if rows %}
-          <div class="table-responsive" style="max-height:280px; overflow-y:auto; border:1px solid var(--border-color); border-radius:var(--radius-md);">
+          <div class="table-wrapper" style="max-height:280px;overflow-y:auto;">
             <table class="table" style="font-size:0.825rem;">
               <thead>
                 <tr>
@@ -152,7 +165,9 @@
             </table>
           </div>
           {% else %}
-          <div class="empty-state" style="padding:20px;"><div class="empty-title">Sheet is empty or has no data rows</div></div>
+          <div class="empty-state" style="padding:20px;">
+            <div class="empty-title">Sheet is empty or has no data rows</div>
+          </div>
           {% endif %}
         </div>
         {% endfor %}
@@ -161,14 +176,16 @@
     {% endif %}
 
     <!-- Master Upload Form -->
-    <form method="POST" action="{{ url_for('admin.master_preview') }}" enctype="multipart/form-data" style="margin-top:8px;">
+    <form method="POST" action="{{ url_for('admin.master_preview') }}" enctype="multipart/form-data"
+      style="margin-top:8px;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end;">
         <div style="flex:1; min-width:260px;">
           <label class="form-label" style="font-weight:600;">Choose Master Excel Workbook (.xlsx) *</label>
           <input type="file" name="master_file" class="form-control" accept=".xlsx, .xls" required>
-          <div class="form-hint">Accepts single workbook e.g. <code>EduPulse_Dataset.xlsx</code> containing 7 worksheets</div>
+          <div class="form-hint">Accepts single workbook e.g. <code>EduPulse_Dataset.xlsx</code> containing 7 worksheets
+          </div>
         </div>
 
         <div style="min-width:240px;">
@@ -209,13 +226,20 @@
   <div id="fallbackImportContainer" style="display:none; padding-top:16px;">
     <!-- Category Tabs -->
     <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; margin-bottom:16px;" id="categoryTabs">
-      <button type="button" class="btn btn-primary btn-sm category-tab" onclick="switchCategory('students')" id="tab-students">🎓 Students</button>
-      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('faculty')" id="tab-faculty">👨‍🏫 Faculty</button>
-      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('marks')" id="tab-marks">📊 Marks</button>
-      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('attendance')" id="tab-attendance">📅 Attendance</button>
-      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('subjects')" id="tab-subjects">📚 Subjects</button>
-      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('examinations')" id="tab-examinations">📝 Examinations</button>
-      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('departments_sections')" id="tab-departments_sections">🏛️ Departments</button>
+      <button type="button" class="btn btn-primary btn-sm category-tab" onclick="switchCategory('students')"
+        id="tab-students">🎓 Students</button>
+      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('faculty')"
+        id="tab-faculty">👨‍🏫 Faculty</button>
+      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('marks')"
+        id="tab-marks">📊 Marks</button>
+      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('attendance')"
+        id="tab-attendance">📅 Attendance</button>
+      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('subjects')"
+        id="tab-subjects">📚 Subjects</button>
+      <button type="button" class="btn btn-secondary btn-sm category-tab" onclick="switchCategory('examinations')"
+        id="tab-examinations">📝 Examinations</button>
+      <button type="button" class="btn btn-secondary btn-sm category-tab"
+        onclick="switchCategory('departments_sections')" id="tab-departments_sections">🏛️ Departments</button>
     </div>
 
     <form method="POST" action="{{ url_for('admin.dataset') }}" enctype="multipart/form-data" id="datasetForm">
@@ -294,20 +318,23 @@
               {{ 'Master Workbook' if h.category == 'master_workbook' else h.category | capitalize }}
             </span>
           </td>
-          <td style="font-weight:500; color:var(--text-primary); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          <td
+            style="font-weight:500; color:var(--text-primary); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
             {{ h.filename }}
           </td>
-          <td style="color:var(--accent-green); font-weight:700;">{{ h.records_imported }}</td>
-          <td style="color:var(--accent-orange); font-weight:600;">{{ h.records_skipped }}</td>
-          <td style="color:var(--accent-red); font-weight:700;">{{ h.records_failed }}</td>
+          <td style="color:var(--success);font-weight:700;">{{ h.records_imported }}</td>
+          <td style="color:var(--warning);font-weight:600;">{{ h.records_skipped }}</td>
+          <td style="color:var(--danger);font-weight:700;">{{ h.records_failed }}</td>
           <td>
-            <span class="badge {{ 'badge-success' if h.status == 'completed' else ('badge-warning' if h.status == 'partial' else 'badge-danger') }}">
+            <span
+              class="badge {{ 'badge-success' if h.status == 'completed' else ('badge-warning' if h.status == 'partial' else 'badge-danger') }}">
               {{ h.status | capitalize }}
             </span>
           </td>
           <td>
             {% if h.records_failed > 0 %}
-            <a href="{{ url_for('admin.download_import_errors', history_id=h.id) }}" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:3px 8px;">
+            <a href="{{ url_for('admin.download_import_errors', history_id=h.id) }}" class="btn btn-secondary btn-sm"
+              style="font-size:0.75rem; padding:3px 8px;">
               📥 Error Audit
             </a>
             {% else %}
@@ -330,55 +357,55 @@
 
 {% block scripts %}
 <script>
-function showMasterSample(cat) {
-  document.querySelectorAll('.master-sample-container').forEach(el => el.style.display = 'none');
-  document.querySelectorAll('.master-tab-btn').forEach(btn => {
-    btn.classList.remove('btn-primary');
-    btn.classList.add('btn-secondary');
-  });
-  const target = document.getElementById('msample-' + cat);
-  const targetBtn = document.getElementById('mtab-' + cat);
-  if (target) target.style.display = 'block';
-  if (targetBtn) {
-    targetBtn.classList.remove('btn-secondary');
-    targetBtn.classList.add('btn-primary');
+  function showMasterSample(cat) {
+    document.querySelectorAll('.master-sample-container').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.master-tab-btn').forEach(btn => {
+      btn.classList.remove('btn-primary');
+      btn.classList.add('btn-secondary');
+    });
+    const target = document.getElementById('msample-' + cat);
+    const targetBtn = document.getElementById('mtab-' + cat);
+    if (target) target.style.display = 'block';
+    if (targetBtn) {
+      targetBtn.classList.remove('btn-secondary');
+      targetBtn.classList.add('btn-primary');
+    }
   }
-}
 
-// Auto open first tab if master preview is present
-{% if master_inspection and master_inspection.detected_sheets %}
-document.addEventListener('DOMContentLoaded', () => {
-  {% for cat in master_inspection.detected_sheets.keys() %}
-  {% if loop.first %}
-  showMasterSample('{{ cat }}');
+  // Auto open first tab if master preview is present
+  {% if master_inspection and master_inspection.detected_sheets %}
+  document.addEventListener('DOMContentLoaded', () => {
+    {% for cat in master_inspection.detected_sheets.keys() %}
+    {% if loop.first %}
+    showMasterSample('{{ cat }}');
+    {% endif %}
+    {% endfor %}
+  });
   {% endif %}
-  {% endfor %}
-});
-{% endif %}
 
-function toggleFallbackImport() {
-  const c = document.getElementById('fallbackImportContainer');
-  const btn = document.getElementById('toggleFallbackBtn');
-  if (c.style.display === 'none') {
-    c.style.display = 'block';
-    btn.innerText = 'Hide Fallback Forms ▴';
-  } else {
-    c.style.display = 'none';
-    btn.innerText = 'Show Fallback Forms ▾';
+  function toggleFallbackImport() {
+    const c = document.getElementById('fallbackImportContainer');
+    const btn = document.getElementById('toggleFallbackBtn');
+    if (c.style.display === 'none') {
+      c.style.display = 'block';
+      btn.innerText = 'Hide Fallback Forms ▴';
+    } else {
+      c.style.display = 'none';
+      btn.innerText = 'Show Fallback Forms ▾';
+    }
   }
-}
 
-function switchCategory(cat) {
-  document.getElementById('selectedCategory').value = cat;
-  document.querySelectorAll('.category-tab').forEach(t => {
-    t.classList.remove('btn-primary');
-    t.classList.add('btn-secondary');
-  });
-  const activeTab = document.getElementById('tab-' + cat);
-  if (activeTab) {
-    activeTab.classList.remove('btn-secondary');
-    activeTab.classList.add('btn-primary');
+  function switchCategory(cat) {
+    document.getElementById('selectedCategory').value = cat;
+    document.querySelectorAll('.category-tab').forEach(t => {
+      t.classList.remove('btn-primary');
+      t.classList.add('btn-secondary');
+    });
+    const activeTab = document.getElementById('tab-' + cat);
+    if (activeTab) {
+      activeTab.classList.remove('btn-secondary');
+      activeTab.classList.add('btn-primary');
+    }
   }
-}
 </script>
 {% endblock %}

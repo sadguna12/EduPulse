@@ -83,7 +83,7 @@
       {% if pending_tasks %}
       <div style="display:flex; flex-direction:column; gap:8px;">
         {% for task in pending_tasks %}
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--bg-elevated); border-radius:var(--radius-md); border-left:3px solid {{ 'var(--accent-red)' if task.priority == 'high' else ('var(--accent-orange)' if task.priority == 'medium' else 'var(--accent-green)') }};">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--bg-surface2); border-radius:var(--radius-md); border-left:3px solid {{ 'var(--danger)' if task.priority == 'high' else ('var(--warning)' if task.priority == 'medium' else 'var(--success)') }};">
           <div>
             <div style="font-size:0.875rem; font-weight:500; color:var(--text-primary);">{{ task.title }}</div>
             {% if task.due_date %}<div class="text-xs text-muted">Due: {{ task.due_date.strftime('%d %b %Y') }}</div>{% endif %}
@@ -107,7 +107,7 @@
       <div style="display:flex; flex-direction:column; gap:6px;">
         {% for m in recent_marks %}
         {% if m.examination %}
-        <div style="display:flex; justify-content:space-between; padding:8px 12px; background:var(--bg-elevated); border-radius:var(--radius-sm);">
+        <div style="display:flex; justify-content:space-between; padding:8px 12px; background:var(--bg-surface2); border-radius:var(--radius-sm);">
           <div>
             <div class="text-sm font-semibold">{{ m.subject.name if m.subject else '—' }}</div>
             <div class="text-xs text-muted">{{ m.examination.name }}</div>
